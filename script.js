@@ -475,57 +475,17 @@ class ContractApp {
         this.loadCalendarTable();
     }
 
-    // Función para esperar y depurar las librerías
-   async waitForLibraries() {
-    const maxAttempts = 10;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-        console.log('Intento', attempts + 1, 'de carga de librerías:');
-        console.log('window.jspdf:', window.jspdf);
-        console.log('window.jspdf.jsPDF:', window.jspdf?.jsPDF);
-        console.log('autoTable en prototype:', window.jspdf?.jsPDF.prototype.autoTable);
-        console.log('window.autoTable:', window.autoTable);
-
-        if (window.jspdf && window.jspdf.jsPDF) {
-            const jsPDF = window.jspdf.jsPDF;
-            if (typeof jsPDF.prototype.autoTable !== 'function') {
-                console.log('AutoTable no detectado en prototype, intentando integración manual');
-                if (typeof window.autoTable === 'function') {
-                    console.log('window.autoTable encontrado, aplicando al constructor jsPDF');
-                    window.autoTable(jsPDF); // Integra el plugin
-                } else {
-                    console.log('window.autoTable no está definido');
-                }
-            }
-            if (typeof jsPDF.prototype.autoTable === 'function') {
-                console.log('Librerías cargadas correctamente');
-                return jsPDF;
-            } else {
-                console.log('AutoTable sigue sin estar disponible después del intento manual');
-            }
-        } else {
-            console.log('jsPDF no está disponible aún');
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-    }
-
-    throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
-}
-
-            await new Promise(resolve => setTimeout(resolve, 500));
-            attempts++;
-        }
-
-        throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
-    }
-
-    async generateHistoryPDF() {
+    generateHistoryPDF() {
         try {
-            const jsPDF = await this.waitForLibraries();
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error('jsPDF no está cargado');
+            }
+            const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            if (typeof doc.autoTable !== 'function') {
+                throw new Error('AutoTable no está disponible');
+            }
+
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 15;
@@ -620,10 +580,17 @@ class ContractApp {
         XLSX.writeFile(wb, `calendario_${this.state.calendarYear}.xlsx`);
     }
 
-    async generateCalendarPDF() {
+    generateCalendarPDF() {
         try {
-            const jsPDF = await this.waitForLibraries();
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error('jsPDF no está cargado');
+            }
+            const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape' });
+            if (typeof doc.autoTable !== 'function') {
+                throw new Error('AutoTable no está disponible');
+            }
+
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 15;
@@ -678,10 +645,17 @@ class ContractApp {
         }
     }
 
-    async generatePDF() {
+    generatePDF() {
         try {
-            const jsPDF = await this.waitForLibraries();
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error('jsPDF no está cargado');
+            }
+            const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+            if (typeof doc.autoTable !== 'function') {
+                throw new Error('AutoTable no está disponible');
+            }
+
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
             const margin = 15;
