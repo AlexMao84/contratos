@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="lib/jspdf.umd.min.js" defer></script>
+    <script src="lib/jspdf.plugin.autotable.min.js" defer></script>
+    <script>
+        function testPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.autoTable({ head: [['Test']], body: [['Funciona']] });
+            doc.save('test.pdf');
+        }
+    </script>
+</head>
+<body>
+    <button onclick="testPDF()">Generar PDF</button>
+</body>
+</html>
