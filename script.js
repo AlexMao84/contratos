@@ -475,28 +475,38 @@ class ContractApp {
         this.loadCalendarTable();
     }
 
-    // Función auxiliar para esperar la carga de las librerías
-   async waitForLibraries() {
-    const maxAttempts = 10;
-    let attempts = 0;
+    // Función para esperar y depurar las librerías
+    async waitForLibraries() {
+        const maxAttempts = 10;
+        let attempts = 0;
 
-    while (attempts < maxAttempts) {
-        console.log('Intento', attempts + 1, 'de carga de librerías:');
-        console.log('window.jspdf:', window.jspdf);
-        console.log('window.jspdf.jsPDF:', window.jspdf?.jsPDF);
-        console.log('autoTable disponible:', window.jspdf?.jsPDF.prototype.autoTable ? 'Sí' : 'No');
+        while (attempts < maxAttempts) {
+            console.log('Intento', attempts + 1, 'de carga de librerías:');
+            console.log('window.jspdf:', window.jspdf);
+            console.log('window.jspdf.jsPDF:', window.jspdf?.jsPDF);
+            console.log('autoTable en prototype:', window.jspdf?.jsPDF.prototype.autoTable);
 
-        if (window.jspdf && window.jspdf.jsPDF && typeof window.jspdf.jsPDF.prototype.autoTable === 'function') {
-            console.log('Librerías cargadas correctamente');
-            return window.jspdf.jsPDF;
+            if (window.jspdf && window.jspdf.jsPDF) {
+                const jsPDF = window.jspdf.jsPDF;
+                // Verifica si autoTable está disponible o intenta cargarlo manualmente
+                if (typeof jsPDF.prototype.autoTable !== 'function') {
+                    console.log('AutoTable no detectado, intentando integración manual');
+                    if (window.autoTable) {
+                        window.autoTable(jsPDF); // Integra el plugin si está disponible como global
+                    }
+                }
+                if (typeof jsPDF.prototype.autoTable === 'function') {
+                    console.log('Librerías cargadas correctamente');
+                    return jsPDF;
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+            attempts++;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
+        throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
     }
-
-    throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
-}
 
     async generateHistoryPDF() {
         try {
