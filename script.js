@@ -154,7 +154,6 @@ class ContractApp {
         btn.setAttribute('aria-selected', 'true');
         this.state.activeTab = tabName;
         this.updateTabContent();
-        // Recalcula ejecución al abrir la pestaña
         if (tabName === 'ejecucion') this.calculateExecutionDates();
     }
 
@@ -193,7 +192,7 @@ class ContractApp {
         } catch (error) {
             console.error('Error en cálculo financiero:', error);
             this.showNotification('Error en cálculos financieros: ' + error.message, 'error');
-            this.state.financialResults = null; // Resetear si falla
+            this.state.financialResults = null;
         }
     }
 
@@ -284,7 +283,6 @@ class ContractApp {
                 console.warn('Elemento #fechaFinal no encontrado');
             }
 
-            // Asegurar que los datos financieros estén disponibles
             if (!this.state.financialResults) {
                 this.calculateFinancials();
                 if (!this.state.financialResults) {
@@ -478,12 +476,12 @@ class ContractApp {
     }
 
     generateHistoryPDF() {
-        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
-            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
-            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+        const { jsPDF } = window.jspdf;
+        if (!jsPDF || !jsPDF.prototype.autoTable) {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado desde el CDN.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Las librerías CDN pueden no haberse cargado correctamente.');
             return;
         }
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -576,12 +574,12 @@ class ContractApp {
     }
 
     generateCalendarPDF() {
-        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
-            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
-            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+        const { jsPDF } = window.jspdf;
+        if (!jsPDF || !jsPDF.prototype.autoTable) {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado desde el CDN.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Las librerías CDN pueden no haberse cargado correctamente.');
             return;
         }
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -634,12 +632,12 @@ class ContractApp {
     }
 
     generatePDF() {
-        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
-            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
-            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+        const { jsPDF } = window.jspdf;
+        if (!jsPDF || !jsPDF.prototype.autoTable) {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado desde el CDN.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Las librerías CDN pueden no haberse cargado correctamente.');
             return;
         }
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
