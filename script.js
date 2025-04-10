@@ -325,7 +325,7 @@ class ContractApp {
 
         let totalCantidad = 0, totalValor = 0;
         tbody.appendChild(this.createRow('Inicio', this.formatDate(start), '-', '-'));
-        for (let i = 1; i <= numCortes; i++) {
+        for (let i = 1; i <= numCortes; i W++) {
             const cutDate = new Date(start);
             cutDate.setDate(start.getDate() + i * cutFrequency);
             if (cutDate <= end) {
@@ -475,18 +475,19 @@ class ContractApp {
         this.loadCalendarTable();
     }
 
-    // Función auxiliar para esperar la carga de las librerías
+    // Función para esperar y verificar las librerías
     async waitForLibraries() {
         const maxAttempts = 10;
         let attempts = 0;
-        while (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
-            if (attempts >= maxAttempts) {
-                throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
+
+        while (attempts < maxAttempts) {
+            if (window.jspdf && window.jspdf.jsPDF && typeof window.jspdf.jsPDF.prototype.autoTable === 'function') {
+                return window.jspdf.jsPDF;
             }
-            await new Promise(resolve => setTimeout(resolve, 500)); // Espera 500ms
+            await new Promise(resolve => setTimeout(resolve, 500));
             attempts++;
         }
-        return window.jspdf.jsPDF;
+        throw new Error('jsPDF o AutoTable no está disponible. Verifique que las librerías CDN (jspdf.umd.min.js y jspdf.plugin.autotable.min.js) estén cargadas.');
     }
 
     async generateHistoryPDF() {
