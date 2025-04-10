@@ -476,18 +476,27 @@ class ContractApp {
     }
 
     // Función auxiliar para esperar la carga de las librerías
-    async waitForLibraries() {
-        const maxAttempts = 10;
-        let attempts = 0;
-        while (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
-            if (attempts >= maxAttempts) {
-                throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
-            }
-            await new Promise(resolve => setTimeout(resolve, 500)); // Espera 500ms
-            attempts++;
+   async waitForLibraries() {
+    const maxAttempts = 10;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+        console.log('Intento', attempts + 1, 'de carga de librerías:');
+        console.log('window.jspdf:', window.jspdf);
+        console.log('window.jspdf.jsPDF:', window.jspdf?.jsPDF);
+        console.log('autoTable disponible:', window.jspdf?.jsPDF.prototype.autoTable ? 'Sí' : 'No');
+
+        if (window.jspdf && window.jspdf.jsPDF && typeof window.jspdf.jsPDF.prototype.autoTable === 'function') {
+            console.log('Librerías cargadas correctamente');
+            return window.jspdf.jsPDF;
         }
-        return window.jspdf.jsPDF;
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
     }
+
+    throw new Error('No se pudieron cargar las librerías jsPDF o AutoTable después de varios intentos');
+}
 
     async generateHistoryPDF() {
         try {
