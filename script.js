@@ -476,7 +476,7 @@ class ContractApp {
     }
 
     // Función para esperar y depurar las librerías
-    aasync waitForLibraries() {
+   async waitForLibraries() {
     const maxAttempts = 10;
     let attempts = 0;
 
