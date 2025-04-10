@@ -8,172 +8,159 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="styles.css">
-    <!-- Librerías desde CDN -->
+     <!-- Librerías desde CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     <script src="script.js" defer></script>
 </head>
-<body>
-    <header>
-        <h1>Revisión de Contratos</h1>
-        <div class="toolbar">
-            <button data-action="saveJSON"><i class="fas fa-save"></i> Guardar JSON</button>
-            <button data-action="loadJSON"><i class="fas fa-upload"></i> Cargar JSON</button>
-            <input type="file" id="jsonFile" style="display: none;" accept=".json">
-            <button data-action="downloadPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-            <button data-action="addContract"><i class="fas fa-plus"></i> Agregar al Histórico</button>
-        </div>
-    </header>
-    <main>
-        <nav class="tabs">
-            <button class="tab-button active" data-tab="informacion" aria-selected="true">Información</button>
-            <button class="tab-button" data-tab="financieros" aria-selected="false">Financieros</button>
-            <button class="tab-button" data-tab="ejecucion" aria-selected="false">Ejecución</button>
-            <button class="tab-button" data-tab="historico" aria-selected="false">Histórico</button>
-            <button class="tab-button" data-tab="calendario" aria-selected="false">Calendario</button>
+<body class="aiu-active">
+    <main aria-label="Revisión de Contratos">
+        <header>
+            <h1>Revisión de Contratos</h1>
+        </header>
+        <nav class="tabs" role="tablist">
+            <button class="tab-button active" data-tab="informacion" role="tab" aria-selected="true" aria-controls="informacion" title="Datos básicos del contrato"><i class="fas fa-info-circle"></i> Información General</button>
+            <button class="tab-button" data-tab="financieros" role="tab" aria-controls="financieros" title="Cálculos financieros"><i class="fas fa-money-bill-wave"></i> Aspectos Financieros</button>
+            <button class="tab-button" data-tab="ejecucion" role="tab" aria-controls="ejecucion" title="Planificación de ejecución"><i class="fas fa-tools"></i> Condiciones de Ejecución</button>
+            <button class="tab-button" data-tab="historico" role="tab" aria-controls="historico" title="Registro de contratos pasados"><i class="fas fa-history"></i> Histórico</button>
+            <button class="tab-button" data-tab="calendario" role="tab" aria-controls="calendario" title="Vista anual de cortes"><i class="fas fa-calendar-alt"></i> Calendario Anual</button>
         </nav>
-        <section id="informacion" class="tab-content active">
+
+        <section id="informacion" class="tab-content active" role="tabpanel">
             <h2>Información General</h2>
-            <div class="form-group">
-                <label for="nombreProyecto">Nombre del Proyecto:</label>
-                <input type="text" id="nombreProyecto" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="form-group">
-                <label for="numeroContrato">No. Contrato:</label>
-                <input type="text" id="numeroContrato">
-            </div>
-            <div class="form-group">
-                <label for="nombreContratante">Contratante:</label>
-                <input type="text" id="nombreContratante" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="form-group">
-                <label for="cantidad">Cantidad:</label>
-                <input type="number" id="cantidad" min="1" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="form-group">
-                <label for="unidadMedida">Unidad de Medida:</label>
-                <select id="unidadMedida">
-                    <option value="M2">M²</option>
-                    <option value="M3">M³</option>
-                    <option value="Und">Und</option>
-                </select>
-            </div>
-        </section>
-        <section id="financieros" class="tab-content">
-            <h2>Aspectos Financieros</h2>
-            <div class="form-group">
-                <label for="currency">Moneda:</label>
-                <select id="currency">
-                    <option value="COP">COP</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                </select>
-            </div>
-            <div class="form-group" id="trmUSD" style="display: none;">
-                <label for="rateUSD">TRM USD:</label>
-                <input type="number" id="rateUSD" value="4100" step="0.01">
-            </div>
-            <div class="form-group" id="trmEUR" style="display: none;">
-                <label for="rateEUR">TRM EUR:</label>
-                <input type="number" id="rateEUR" value="4500" step="0.01">
-            </div>
-            <div class="form-group">
-                <label for="convertCurrency">Convertir a COP:</label>
-                <input type="checkbox" id="convertCurrency" checked>
-            </div>
-            <div class="form-group">
-                <label for="valorSubtotal">Costo Directo:</label>
-                <input type="number" id="valorSubtotal" min="0" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="cop-section">
-                <div class="form-group">
-                    <label for="conAIU">Con AIU:</label>
-                    <input type="checkbox" id="conAIU">
-                </div>
-                <div class="aiu-group">
-                    <div class="form-group">
-                        <label for="administracion">Administración (%):</label>
-                        <input type="number" id="administracion" min="0" max="100" value="6">
-                    </div>
-                    <div class="form-group">
-                        <label for="imprevistos">Imprevistos (%):</label>
-                        <input type="number" id="imprevistos" min="0" max="100" value="6">
-                    </div>
-                    <div class="form-group">
-                        <label for="utilidad">Utilidad (%):</label>
-                        <input type="number" id="utilidad" min="0" max="100" value="6">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="iva">IVA (%):</label>
-                    <input type="number" id="iva" min="0" max="100" value="19">
-                </div>
-            </div>
-            <div class="results">
-                <p>Costo Directo: <span id="valorSubtotalDisplay"></span></p>
-                <p>Subtotal sin AIU: <span id="valorSubtotalSinAIU"></span></p>
-                <div class="aiu-group">
-                    <p>Administración: <span id="valorAdministracion"></span></p>
-                    <p>Imprevistos: <span id="valorImprevistos"></span></p>
-                    <p>Utilidad: <span id="valorUtilidad"></span></p>
-                    <p>Total AIU: <span id="totalAIU"></span></p>
-                </div>
-                <p>Subtotal con AIU: <span id="valorSubtotalConAIU"></span></p>
-                <p>IVA: <span id="valorIVA"></span></p>
-                <p>Valor Total: <span id="valorTotal"></span></p>
-                <p>Anticipo: <span id="valorAnticipo"></span></p>
-                <p>Avance de Obra: <span id="porcentajeAvance"></span> - <span id="valorAvance"></span></p>
-                <p>Retenido: <span id="valorRetenido"></span></p>
-            </div>
-            <div class="form-group">
-                <label for="porcentajeAnticipo">Anticipo (%):</label>
-                <input type="number" id="porcentajeAnticipo" min="0" max="100" value="30">
-            </div>
-            <div class="form-group">
-                <label for="porcentajeRetenido">Retenido (%):</label>
-                <input type="number" id="porcentajeRetenido" min="0" max="100" value="10">
-            </div>
-        </section>
-        <section id="ejecucion" class="tab-content">
-            <h2>Condiciones de Ejecución</h2>
-            <div class="form-group">
-                <label for="fechaInicio">Fecha de Inicio:</label>
-                <input type="date" id="fechaInicio" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="form-group">
-                <label for="plazoEjecucion">Plazo de Ejecución (días):</label>
-                <input type="number" id="plazoEjecucion" min="1" required>
-                <span class="error-message"></span>
-            </div>
-            <div class="form-group">
-                <label for="periodicidadCortes">Periodicidad de Cortes:</label>
-                <select id="periodicidadCortes">
-                    <option value="semanal">Semanal</option>
-                    <option value="quincenal">Quincenal</option>
-                </select>
-            </div>
-            <p>Fecha Final: <span id="fechaFinal"></span></p>
-            <div id="cronograma" style="display: block;">Cronograma no calculado</div>
-            <table id="cronogramaTable" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>Etapa</th>
-                        <th>Fecha</th>
-                        <th>Cantidad</th>
-                        <th>Valor</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
+            <table id="informacionTable">
+                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                <tbody>
+                    <tr><td>Nombre del Proyecto:</td><td><input type="text" id="nombreProyecto" value="Construcción Bogotá" required><span class="error-message"></span></td></tr>
+                    <tr><td>Número de Contrato:</td><td><input type="text" id="numeroContrato" value="C-001-2025"><span class="error-message"></span></td></tr>
+                    <tr><td>Nombre del Contratante:</td><td><input type="text" id="nombreContratante" value="Ejemplo Contratante" required><span class="error-message"></span></td></tr>
+                    <tr><td>NIT del Contratante:</td><td><input type="text" id="nitContratante" value="123456789-0"><span class="error-message"></span></td></tr>
+                    <tr><td>Teléfono del Contratante:</td><td><input type="tel" id="telefonoContratante" value="123-456-7890"><span class="error-message"></span></td></tr>
+                    <tr><td>Correo Electrónico del Contratante:</td><td><input type="email" id="emailContratante" value="contratante@ejemplo.com"><span class="error-message"></span></td></tr>
+                    <tr><td>Email de Facturación del Contratante:</td><td><input type="email" id="emailFacturacionContratante" value="facturacion.contratante@ejemplo.com"><span class="error-message"></span></td></tr>
+                    <tr><td>Nombre del Contratista:</td><td><input type="text" id="nombreContratista" value="Ejemplo Contratista"><span class="error-message"></span></td></tr>
+                    <tr><td>NIT del Contratista:</td><td><input type="text" id="nitContratista" value="987654321-0"><span class="error-message"></span></td></tr>
+                    <tr><td>Teléfono del Contratista:</td><td><input type="tel" id="telefonoContratista" value="987-654-3210"><span class="error-message"></span></td></tr>
+                    <tr><td>Correo Electrónico del Contratista:</td><td><input type="email" id="emailContratista" value="contratista@ejemplo.com"><span class="error-message"></span></td></tr>
+                    <tr><td>Email de Facturación del Contratista:</td><td><input type="email" id="emailFacturacionContratista" value="facturacion.contratista@ejemplo.com"><span class="error-message"></span></td></tr>
+                    <tr><td>Objeto del Contrato:</td><td><textarea id="objetoContrato">Suministro e instalación de equipos eléctricos.</textarea><span class="error-message"></span></td></tr>
+                    <tr><td>Ubicación del Proyecto:</td><td><textarea id="ubicacionProyecto">Calle 123 #45-67, Bogotá, Colombia</textarea><span class="error-message"></span></td></tr>
+                </tbody>
             </table>
         </section>
-        <section id="historico" class="tab-content">
+
+        <section id="financieros" class="tab-content" role="tabpanel">
+            <h2>Aspectos Financieros</h2>
+            <div class="currency-selector">
+                <label for="currency">Moneda:</label>
+                <select id="currency">
+                    <option value="COP" selected>COP - Peso Colombiano</option>
+                    <option value="USD">USD - Dólar Estadounidense</option>
+                    <option value="EUR">EUR - Euro</option>
+                </select>
+                <label for="convertCurrency" style="margin-left: 1rem;">Convertir a COP:</label>
+                <input type="checkbox" id="convertCurrency" checked>
+            </div>
+            <div class="exchange-rates">
+                <div class="trm-field" id="trmUSD" style="display: none;">
+                    <label for="rateUSD">TRM USD (COP por 1 USD):</label>
+                    <input type="number" id="rateUSD" value="4100" step="0.1" min="0">
+                </div>
+                <div class="trm-field" id="trmEUR" style="display: none;">
+                    <label for="rateEUR">TRM EUR (COP por 1 EUR):</label>
+                    <input type="number" id="rateEUR" value="4500" step="0.1" min="0">
+                </div>
+            </div>
+            <div class="financial-section total-section">
+                <h3 title="Costo inicial del contrato">Costo Directo</h3>
+                <table id="costoDirectoTable">
+                    <thead><tr><th>Concepto</th><th>Valor</th></tr></thead>
+                    <tbody>
+                        <tr><td>Costo Directo</td><td><input type="number" id="valorSubtotal" value="10000000" min="0" step="1000" required><span id="valorSubtotalDisplay">$ 0.00</span></td></tr>
+                        <tr class="subtotal"><td>Subtotal sin AIU</td><td id="valorSubtotalSinAIU">$ 0.00</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="financial-section aiu-section cop-only">
+                <h3 title="Administración, Imprevistos y Utilidad">AIU <input type="checkbox" id="conAIU" checked></h3>
+                <div class="aiu-fields">
+                    <table id="aiuTable">
+                        <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
+                        <tbody>
+                            <tr><td>Administración</td><td><input type="number" id="administracion" value="6" min="0" max="100" step="0.1"></td><td id="valorAdministracion">$ 0.00</td></tr>
+                            <tr><td>Imprevistos</td><td><input type="number" id="imprevistos" value="6" min="0" max="100" step="0.1"></td><td id="valorImprevistos">$ 0.00</td></tr>
+                            <tr><td>Utilidad</td><td><input type="number" id="utilidad" value="6" min="0" max="100" step="0.1"></td><td id="valorUtilidad">$ 0.00</td></tr>
+                            <tr class="total-aiu"><td>Total AIU</td><td></td><td id="totalAIU">$ 0.00</td></tr>
+                            <tr class="subtotal"><td>Subtotal con AIU</td><td></td><td id="valorSubtotalConAIU">$ 0.00</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="financial-section iva-section cop-only">
+                <h3 title="Impuesto al Valor Agregado">Impuestos</h3>
+                <table id="ivaTable">
+                    <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
+                    <tbody>
+                        <tr><td>IVA</td><td><input type="number" id="iva" value="19" min="0" max="100" step="0.1"></td><td id="valorIVA">$ 0.00</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="financial-section total-final-section">
+                <h3 title="Valor total del contrato">Valor Total</h3>
+                <table id="valorTotalTable">
+                    <thead><tr><th>Concepto</th><th>Valor</th></tr></thead>
+                    <tbody>
+                        <tr><td>Valor Total</td><td id="valorTotal">$ 0.00</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="financial-section payment-section">
+                <h3 title="Distribución de pagos">Forma de Pago</h3>
+                <table id="formaPagoTable">
+                    <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
+                    <tbody>
+                        <tr><td>Anticipo</td><td><input type="number" id="porcentajeAnticipo" value="30" min="0" max="100" step="0.1"></td><td id="valorAnticipo">$ 0.00</td></tr>
+                        <tr><td>Avance de Obra</td><td id="porcentajeAvance">-</td><td id="valorAvance">$ 0.00</td></tr>
+                        <tr><td>Retenido</td><td><input type="number" id="porcentajeRetenido" value="5" min="0" max="100" step="0.1"></td><td id="valorRetenido">$ 0.00</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="ejecucion" class="tab-content" role="tabpanel">
+            <h2>Condiciones de Ejecución</h2>
+            <table id="ejecucionTable">
+                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                <tbody>
+                    <tr><td>Plazo de Ejecución (días):</td><td><input type="number" id="plazoEjecucion" value="90" min="1" required><span class="error-message"></span></td></tr>
+                    <tr><td>Fecha de Inicio:</td><td><input type="date" id="fechaInicio" value="2025-01-01" required><span class="error-message"></span></td></tr>
+                    <tr><td>Fecha Final:</td><td><p id="fechaFinal">No calculada</p></td></tr>
+                    <tr><td>Periodicidad de Cortes:</td><td><select id="periodicidadCortes"><option value="semanal">Semanal (7 días)</option><option value="quincenal" selected>Quincenal (15 días)</option></select><span class="error-message"></span></td></tr>
+                    <tr><td>Tiempo para Pago de Facturas (días):</td><td><input type="number" id="tiempoPagoFacturas" value="15" min="1"><span class="error-message"></span></td></tr>
+                    <tr><td>Unidad de Medida:</td><td><select id="unidadMedida"><option value="M2" selected>M2</option><option value="Unidades">Unidades</option><option value="Metros">Metros</option><option value="Kilogramos">Kilogramos</option><option value="Litros">Litros</option><option value="Horas">Horas</option></select></td></tr>
+                    <tr><td>Cantidad:</td><td><input type="number" id="cantidad" value="90" min="0"><span class="error-message"></span></td></tr>
+                    <tr><td>Alcance del Contrato:</td><td><textarea id="alcanceContrato">Suministro de materiales e instalación eléctrica completa</textarea><span class="error-message"></span></td></tr>
+                    <tr><td>Cronograma de Trabajo:</td><td><p id="cronograma">No calculado</p></td></tr>
+                </tbody>
+            </table>
+            <table id="cronogramaTable" style="display: none;">
+                <thead><tr><th>Etapa</th><th>Fecha</th><th>Cantidad</th><th>Valor</th></tr></thead>
+                <tbody></tbody>
+            </table>
+            <div class="toolbar">
+                <button data-action="addContract"><i class="fas fa-plus"></i> Agregar Contrato Actual</button>
+                <button data-action="downloadPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+            </div>
+        </section>
+
+        <section id="historico" class="tab-content" role="tabpanel">
             <h2>Histórico de Contratos</h2>
+            <div class="toolbar">
+                <button data-action="downloadHistoryPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+                <button data-action="downloadHistoryExcel"><i class="fas fa-file-excel"></i> Descargar Excel</button>
+                <button data-action="clearHistory" style="background: #e53935;"><i class="fas fa-trash-alt"></i> Borrar Historial</button>
+            </div>
             <table id="tablaHistorico">
                 <thead>
                     <tr>
@@ -188,47 +175,41 @@
                 </thead>
                 <tbody></tbody>
             </table>
-            <footer>
-                <button data-action="downloadHistoryPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-                <button data-action="downloadHistoryExcel"><i class="fas fa-file-excel"></i> Descargar Excel</button>
-                <button data-action="clearHistory"><i class="fas fa-trash"></i> Borrar Histórico</button>
-            </footer>
         </section>
-        <section id="calendario" class="tab-content">
+
+        <section id="calendario" class="tab-content" role="tabpanel">
             <h2>Calendario Anual</h2>
             <div class="calendar-controls">
-                <button id="prevYear"><i class="fas fa-chevron-left"></i></button>
-                <span id="calendarYear"></span>
-                <button id="nextYear"><i class="fas fa-chevron-right"></i></button>
-                <button id="toggleBars"><i class="fas fa-chart-bar"></i></button>
+                <button id="prevYear"><i class="fas fa-chevron-left"></i> Año Anterior</button>
+                <span id="calendarYear">2025</span>
+                <button id="nextYear"><i class="fas fa-chevron-right"></i> Año Siguiente</button>
+                <button id="toggleBars" title="Alternar barras"><i class="fas fa-chart-bar"></i></button>
             </div>
-            <table id="calendarioTable">
-                <thead>
-                    <tr>
-                        <th>Proyecto</th>
-                        <th>Ene</th>
-                        <th>Feb</th>
-                        <th>Mar</th>
-                        <th>Abr</th>
-                        <th>May</th>
-                        <th>Jun</th>
-                        <th>Jul</th>
-                        <th>Ago</th>
-                        <th>Sep</th>
-                        <th>Oct</th>
-                        <th>Nov</th>
-                        <th>Dic</th>
-                        <th>Total</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-                <tfoot></tfoot>
-            </table>
-            <footer>
-                <button data-action="downloadCalendarPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+            <div class="toolbar">
                 <button data-action="downloadCalendarExcel"><i class="fas fa-file-excel"></i> Descargar Excel</button>
-            </footer>
+                <button data-action="downloadCalendarPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+            </div>
+            <div class="calendar-wrapper">
+                <table id="calendarioTable">
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+                            <th>Jul</th><th>Ago</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dic</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                    <tfoot></tfoot>
+                </table>
+            </div>
         </section>
+
+        <footer class="toolbar">
+            <button data-action="saveJSON"><i class="fas fa-save"></i> Guardar JSON</button>
+            <input type="file" id="jsonFile" accept=".json" hidden aria-label="Cargar archivo JSON">
+            <button data-action="loadJSON"><i class="fas fa-upload"></i> Cargar JSON</button>
+        </footer>
     </main>
 </body>
 </html>

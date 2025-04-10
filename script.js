@@ -154,6 +154,7 @@ class ContractApp {
         btn.setAttribute('aria-selected', 'true');
         this.state.activeTab = tabName;
         this.updateTabContent();
+        // Recalcula ejecución al abrir la pestaña
         if (tabName === 'ejecucion') this.calculateExecutionDates();
     }
 
@@ -192,7 +193,7 @@ class ContractApp {
         } catch (error) {
             console.error('Error en cálculo financiero:', error);
             this.showNotification('Error en cálculos financieros: ' + error.message, 'error');
-            this.state.financialResults = null;
+            this.state.financialResults = null; // Resetear si falla
         }
     }
 
@@ -283,6 +284,7 @@ class ContractApp {
                 console.warn('Elemento #fechaFinal no encontrado');
             }
 
+            // Asegurar que los datos financieros estén disponibles
             if (!this.state.financialResults) {
                 this.calculateFinancials();
                 if (!this.state.financialResults) {
@@ -476,17 +478,30 @@ class ContractApp {
     }
 
     generateHistoryPDF() {
-        try {
-            const { jsPDF } = window.jspdf;
-            if (!jsPDF) {
-                throw new Error('jsPDF no está disponible');
-            }
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('Histórico de Contratos', 105, 20, { align: 'center' });
+        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+            return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
 
-            const headers = [['Proyecto', 'Contratante', 'Cantidad', 'Valor Total', 'Plazo', 'Inicio', 'Fin']];
-            const data = this.state.contractsHistory.map(c => [
+        doc.setFillColor(2, 119, 189);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(18);
+        doc.setFont('Helvetica', 'bold');
+        doc.text('Histórico de Contratos', pageWidth / 2, 25, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(38, 50, 56);
+        doc.autoTable({
+            startY: 45,
+            head: [['Proyecto', 'Contratante', 'Cantidad', 'Valor Total', 'Plazo', 'Inicio', 'Fin']],
+            body: this.state.contractsHistory.map(c => [
                 c.nombreProyecto,
                 c.contratante,
                 `${this.formatNumber(c.cantidad)} ${c.unidadMedida}`,
@@ -494,23 +509,18 @@ class ContractApp {
                 `${c.plazoEjecucion} días`,
                 this.formatDate(new Date(c.fechaInicio)),
                 this.formatDate(new Date(c.fechaFinal))
-            ]);
+            ]),
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+            headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 249, 252] },
+            margin: { top: 45, left: margin, right: margin }
+        });
 
-            doc.autoTable({
-                head: headers,
-                body: data,
-                startY: 30,
-                theme: 'grid',
-                styles: { fontSize: 10 },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] },
-                alternateRowStyles: { fillColor: [245, 249, 252] }
-            });
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-            doc.save('historico_contratos.pdf');
-        } catch (error) {
-            console.error('Error generando PDF de historial:', error);
-            this.showNotification('Error al generar el PDF del historial: ' + error.message, 'error');
-        }
+        doc.save('historico_contratos.pdf');
     }
 
     generateHistoryExcel() {
@@ -566,117 +576,169 @@ class ContractApp {
     }
 
     generateCalendarPDF() {
-        try {
-            const { jsPDF } = window.jspdf;
-            if (!jsPDF) {
-                throw new Error('jsPDF no está disponible');
-            }
-            const doc = new jsPDF({ orientation: 'landscape' });
-            doc.setFontSize(16);
-            doc.text(`Calendario Anual ${this.state.calendarYear}`, 148, 20, { align: 'center' });
-
-            const headers = [['Proyecto', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Total']];
-            const monthlyTotals = Array(12).fill(0);
-            let yearlyTotal = 0;
-            const body = this.state.contractsHistory.map(c => {
-                const cuts = this.calculateCutsForContract(c);
-                const months = Array(12).fill(0);
-                let projectTotal = 0;
-                cuts.forEach(cut => {
-                    if (cut.date.getFullYear() === this.state.calendarYear) {
-                        const month = cut.date.getMonth();
-                        months[month] += cut.valor;
-                        projectTotal += cut.valor;
-                        monthlyTotals[month] += cut.valor;
-                        yearlyTotal += cut.valor;
-                    }
-                });
-                return [c.nombreProyecto, ...months.map(m => this.formatCurrency(m)), this.formatCurrency(projectTotal)];
-            });
-            body.push(['Total', ...monthlyTotals.map(total => this.formatCurrency(total)), this.formatCurrency(yearlyTotal)]);
-
-            doc.autoTable({
-                head: headers,
-                body: body,
-                startY: 30,
-                theme: 'grid',
-                styles: { fontSize: 8 },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] },
-                alternateRowStyles: { fillColor: [245, 249, 252] }
-            });
-
-            doc.save(`calendario_${this.state.calendarYear}.pdf`);
-        } catch (error) {
-            console.error('Error generando PDF de calendario:', error);
-            this.showNotification('Error al generar el PDF del calendario: ' + error.message, 'error');
+        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+            return;
         }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+
+        doc.setFillColor(2, 119, 189);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(18);
+        doc.setFont('Helvetica', 'bold');
+        doc.text(`Calendario Anual ${this.state.calendarYear}`, pageWidth / 2, 25, { align: 'center' });
+
+        const monthlyTotals = Array(12).fill(0);
+        let yearlyTotal = 0;
+        const body = this.state.contractsHistory.map(c => {
+            const cuts = this.calculateCutsForContract(c);
+            const months = Array(12).fill(0);
+            let projectTotal = 0;
+            cuts.forEach(cut => {
+                if (cut.date.getFullYear() === this.state.calendarYear) {
+                    const month = cut.date.getMonth();
+                    months[month] += cut.valor;
+                    projectTotal += cut.valor;
+                    monthlyTotals[month] += cut.valor;
+                    yearlyTotal += cut.valor;
+                }
+            });
+            return [c.nombreProyecto, ...months.map(m => this.formatCurrency(m)), this.formatCurrency(projectTotal)];
+        });
+        body.push(['Total', ...monthlyTotals.map(total => this.formatCurrency(total)), this.formatCurrency(yearlyTotal)]);
+
+        doc.setFontSize(10);
+        doc.setTextColor(38, 50, 56);
+        doc.autoTable({
+            startY: 45,
+            head: [['Proyecto', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Total']],
+            body,
+            styles: { font: 'Helvetica', fontSize: 8, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+            headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 249, 252] },
+            columnStyles: { 0: { cellWidth: 30 } },
+            margin: { top: 45, left: margin, right: margin }
+        });
+
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+
+        doc.save(`calendario_${this.state.calendarYear}.pdf`);
     }
 
     generatePDF() {
-        try {
-            const { jsPDF } = window.jspdf;
-            if (!jsPDF) {
-                throw new Error('jsPDF no está disponible');
-            }
-            const doc = new jsPDF();
-            doc.setFontSize(16);
-            doc.text('Revisión de Contrato', 105, 20, { align: 'center' });
-
-            doc.setFontSize(12);
-            doc.text('Información General', 15, 30);
-            doc.autoTable({
-                startY: 35,
-                head: [['Campo', 'Valor']],
-                body: this.getSectionData('informacion'),
-                theme: 'grid',
-                styles: { fontSize: 10 },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] }
-            });
-
-            let y = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(12);
-            doc.text('Aspectos Financieros', 15, y);
-            doc.autoTable({
-                startY: y + 5,
-                head: [['Concepto', 'Porcentaje', 'Valor']],
-                body: this.getFinancialData(),
-                theme: 'grid',
-                styles: { fontSize: 10 },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] }
-            });
-
-           $y = doc.lastAutoTable.finalY + 10;
-            doc.setFontSize(12);
-            doc.text('Condiciones de Ejecución', 15, y);
-            doc.autoTable({
-                startY: y + 5,
-                head: [['Campo', 'Valor']],
-                body: this.getSectionData('ejecucion'),
-                theme: 'grid',
-                styles: { fontSize: 10 },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] }
-            });
-
-            const cronogramaData = this.getCronogramaData();
-            if (cronogramaData.length > 0) {
-                y = doc.lastAutoTable.finalY + 10;
-                doc.setFontSize(12);
-                doc.text('Cronograma de Trabajo', 15, y);
-                doc.autoTable({
-                    startY: y + 5,
-                    head: [['Etapa', 'Fecha', 'Cantidad', 'Valor']],
-                    body: cronogramaData,
-                    theme: 'grid',
-                    styles: { fontSize: 10 },
-                    headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255] }
-                });
-            }
-
-            doc.save('revision_contrato.pdf');
-        } catch (error) {
-            console.error('Error generando PDF:', error);
-            this.showNotification('Error al generar el PDF: ' + error.message, 'error');
+        if (!window.jspdf || !window.jspdf.jsPDF || typeof window.jspdf.jsPDF.prototype.autoTable !== 'function') {
+            this.showNotification('Error: jsPDF o AutoTable no está cargado. Verifique las librerías.', 'error');
+            console.error('jsPDF o AutoTable no está disponible. Asegúrese de incluir jspdf.umd.min.js y jspdf.plugin.autotable.min.js en el directorio.');
+            return;
         }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+
+        doc.setFillColor(2, 119, 189);
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        doc.setTextColor(255);
+        doc.setFontSize(18);
+        doc.setFont('Helvetica', 'bold');
+        doc.text('Revisión de Contrato', pageWidth / 2, 25, { align: 'center' });
+
+        let y = 45;
+
+        doc.setFontSize(14);
+        doc.setTextColor(2, 119, 189);
+        doc.text('Información General', margin, y);
+        y += 5;
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(2, 119, 189);
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.setTextColor(38, 50, 56);
+        doc.autoTable({
+            startY: y,
+            head: [['Campo', 'Valor']],
+            body: this.getSectionData('informacion'),
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+            headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 249, 252] },
+            margin: { left: margin, right: margin }
+        });
+        y = doc.lastAutoTable.finalY + 15;
+
+        doc.setFontSize(14);
+        doc.setTextColor(2, 119, 189);
+        doc.text('Aspectos Financieros', margin, y);
+        y += 5;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.setTextColor(38, 50, 56);
+        doc.autoTable({
+            startY: y,
+            head: [['Concepto', 'Porcentaje', 'Valor']],
+            body: this.getFinancialData(),
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+            headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 249, 252] },
+            margin: { left: margin, right: margin }
+        });
+        y = doc.lastAutoTable.finalY + 15;
+
+        doc.setFontSize(14);
+        doc.setTextColor(2, 119, 189);
+        doc.text('Condiciones de Ejecución', margin, y);
+        y += 5;
+        doc.line(margin, y, pageWidth - margin, y);
+        y += 5;
+        doc.setFontSize(10);
+        doc.setTextColor(38, 50, 56);
+        doc.autoTable({
+            startY: y,
+            head: [['Campo', 'Valor']],
+            body: this.getSectionData('ejecucion'),
+            styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+            headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 249, 252] },
+            margin: { left: margin, right: margin }
+        });
+        y = doc.lastAutoTable.finalY + 15;
+
+        const cronogramaData = this.getCronogramaData();
+        if (cronogramaData.length > 0) {
+            doc.setFontSize(14);
+            doc.setTextColor(2, 119, 189);
+            doc.text('Cronograma de Trabajo', margin, y);
+            y += 5;
+            doc.line(margin, y, pageWidth - margin, y);
+            y += 5;
+            doc.setFontSize(10);
+            doc.setTextColor(38, 50, 56);
+            doc.autoTable({
+                startY: y,
+                head: [['Etapa', 'Fecha', 'Cantidad', 'Valor']],
+                body: cronogramaData,
+                styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
+                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
+                alternateRowStyles: { fillColor: [245, 249, 252] },
+                margin: { left: margin, right: margin }
+            });
+        }
+
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+
+        doc.save('revision_contrato.pdf');
     }
 
     getSectionData(sectionId) {
@@ -687,26 +749,26 @@ class ContractApp {
 
     getFinancialData() {
         const data = [
-            ['Costo Directo', '', document.getElementById('valorSubtotalDisplay')?.textContent || ''],
-            ['Subtotal sin AIU', '', document.getElementById('valorSubtotalSinAIU')?.textContent || ''],
+            ['Costo Directo', '', document.getElementById('valorSubtotalDisplay')?.textContent],
+            ['Subtotal sin AIU', '', document.getElementById('valorSubtotalSinAIU')?.textContent],
         ];
         if (this.state.currency === 'COP' || this.state.convertCurrency) {
             if (document.getElementById('conAIU')?.checked) {
                 data.push(
-                    ['Administración', `${document.getElementById('administracion')?.value || 0}%`, document.getElementById('valorAdministracion')?.textContent || ''],
-                    ['Imprevistos', `${document.getElementById('imprevistos')?.value || 0}%`, document.getElementById('valorImprevistos')?.textContent || ''],
-                    ['Utilidad', `${document.getElementById('utilidad')?.value || 0}%`, document.getElementById('valorUtilidad')?.textContent || ''],
-                    ['Total AIU', '', document.getElementById('totalAIU')?.textContent || ''],
-                    ['Subtotal con AIU', '', document.getElementById('valorSubtotalConAIU')?.textContent || '']
+                    ['Administración', `${document.getElementById('administracion')?.value}%`, document.getElementById('valorAdministracion')?.textContent],
+                    ['Imprevistos', `${document.getElementById('imprevistos')?.value}%`, document.getElementById('valorImprevistos')?.textContent],
+                    ['Utilidad', `${document.getElementById('utilidad')?.value}%`, document.getElementById('valorUtilidad')?.textContent],
+                    ['Total AIU', '', document.getElementById('totalAIU')?.textContent],
+                    ['Subtotal con AIU', '', document.getElementById('valorSubtotalConAIU')?.textContent]
                 );
             }
-            data.push(['IVA', `${document.getElementById('iva')?.value || 0}%`, document.getElementById('valorIVA')?.textContent || '']);
+            data.push(['IVA', `${document.getElementById('iva')?.value}%`, document.getElementById('valorIVA')?.textContent]);
         }
         data.push(
-            ['Valor Total', '', document.getElementById('valorTotal')?.textContent || ''],
-            ['Anticipo', `${document.getElementById('porcentajeAnticipo')?.value || 0}%`, document.getElementById('valorAnticipo')?.textContent || ''],
-            ['Avance de Obra', document.getElementById('porcentajeAvance')?.textContent || '', document.getElementById('valorAvance')?.textContent || ''],
-            ['Retenido', `${document.getElementById('porcentajeRetenido')?.value || 0}%`, document.getElementById('valorRetenido')?.textContent || '']
+            ['Valor Total', '', document.getElementById('valorTotal')?.textContent],
+            ['Anticipo', `${document.getElementById('porcentajeAnticipo')?.value}%`, document.getElementById('valorAnticipo')?.textContent],
+            ['Avance de Obra', document.getElementById('porcentajeAvance')?.textContent, document.getElementById('valorAvance')?.textContent],
+            ['Retenido', `${document.getElementById('porcentajeRetenido')?.value}%`, document.getElementById('valorRetenido')?.textContent]
         );
         return data;
     }
