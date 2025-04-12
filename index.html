@@ -3,213 +3,574 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Aplicación para la revisión de contratos">
     <title>Revisión de Contratos</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" media="print" onload="this.media='all'" />
     <link rel="stylesheet" href="styles.css">
-     <!-- Librerías desde CDN -->
-    <script src="lib/jspdf.umd.min.js" defer></script>
-    <script src="lib/jspdf.plugin.autotable.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-    <script src="script.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
-<body class="aiu-active">
-    <main aria-label="Revisión de Contratos">
-        <header>
-            <h1>Revisión de Contratos</h1>
-        </header>
-        <nav class="tabs" role="tablist">
-            <button class="tab-button active" data-tab="informacion" role="tab" aria-selected="true" aria-controls="informacion" title="Datos básicos del contrato"><i class="fas fa-info-circle"></i> Información General</button>
-            <button class="tab-button" data-tab="financieros" role="tab" aria-controls="financieros" title="Cálculos financieros"><i class="fas fa-money-bill-wave"></i> Aspectos Financieros</button>
-            <button class="tab-button" data-tab="ejecucion" role="tab" aria-controls="ejecucion" title="Planificación de ejecución"><i class="fas fa-tools"></i> Condiciones de Ejecución</button>
-            <button class="tab-button" data-tab="historico" role="tab" aria-controls="historico" title="Registro de contratos pasados"><i class="fas fa-history"></i> Histórico</button>
-            <button class="tab-button" data-tab="calendario" role="tab" aria-controls="calendario" title="Vista anual de cortes"><i class="fas fa-calendar-alt"></i> Calendario Anual</button>
-        </nav>
-
-        <section id="informacion" class="tab-content active" role="tabpanel">
-            <h2>Información General</h2>
-            <table id="informacionTable">
-                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
-                <tbody>
-                    <tr><td>Nombre del Proyecto:</td><td><input type="text" id="nombreProyecto" value="Construcción Bogotá" required><span class="error-message"></span></td></tr>
-                    <tr><td>Número de Contrato:</td><td><input type="text" id="numeroContrato" value="C-001-2025"><span class="error-message"></span></td></tr>
-                    <tr><td>Nombre del Contratante:</td><td><input type="text" id="nombreContratante" value="Ejemplo Contratante" required><span class="error-message"></span></td></tr>
-                    <tr><td>NIT del Contratante:</td><td><input type="text" id="nitContratante" value="123456789-0"><span class="error-message"></span></td></tr>
-                    <tr><td>Teléfono del Contratante:</td><td><input type="tel" id="telefonoContratante" value="123-456-7890"><span class="error-message"></span></td></tr>
-                    <tr><td>Correo Electrónico del Contratante:</td><td><input type="email" id="emailContratante" value="contratante@ejemplo.com"><span class="error-message"></span></td></tr>
-                    <tr><td>Email de Facturación del Contratante:</td><td><input type="email" id="emailFacturacionContratante" value="facturacion.contratante@ejemplo.com"><span class="error-message"></span></td></tr>
-                    <tr><td>Nombre del Contratista:</td><td><input type="text" id="nombreContratista" value="Ejemplo Contratista"><span class="error-message"></span></td></tr>
-                    <tr><td>NIT del Contratista:</td><td><input type="text" id="nitContratista" value="987654321-0"><span class="error-message"></span></td></tr>
-                    <tr><td>Teléfono del Contratista:</td><td><input type="tel" id="telefonoContratista" value="987-654-3210"><span class="error-message"></span></td></tr>
-                    <tr><td>Correo Electrónico del Contratista:</td><td><input type="email" id="emailContratista" value="contratista@ejemplo.com"><span class="error-message"></span></td></tr>
-                    <tr><td>Email de Facturación del Contratista:</td><td><input type="email" id="emailFacturacionContratista" value="facturacion.contratista@ejemplo.com"><span class="error-message"></span></td></tr>
-                    <tr><td>Objeto del Contrato:</td><td><textarea id="objetoContrato">Suministro e instalación de equipos eléctricos.</textarea><span class="error-message"></span></td></tr>
-                    <tr><td>Ubicación del Proyecto:</td><td><textarea id="ubicacionProyecto">Calle 123 #45-67, Bogotá, Colombia</textarea><span class="error-message"></span></td></tr>
-                </tbody>
-            </table>
-        </section>
-
-        <section id="financieros" class="tab-content" role="tabpanel">
-            <h2>Aspectos Financieros</h2>
-            <div class="currency-selector">
-                <label for="currency">Moneda:</label>
-                <select id="currency">
-                    <option value="COP" selected>COP - Peso Colombiano</option>
-                    <option value="USD">USD - Dólar Estadounidense</option>
-                    <option value="EUR">EUR - Euro</option>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <h1><i class="fas fa-file-contract"></i> Revisión de Contratos</h1>
+            <nav class="tabs">
+                <button class="tab-button active" data-tab="informacion"><i class="fas fa-info-circle"></i> Información</button>
+                <button class="tab-button" data-tab="financieros"><i class="fas fa-dollar-sign"></i> Financieros</button>
+                <button class="tab-button" data-tab="ejecucion"><i class="fas fa-tools"></i> Ejecución</button>
+                <button class="tab-button" data-tab="historico"><i class="fas fa-history"></i> Histórico</button>
+                <button class="tab-button" data-tab="calendario"><i class="fas fa-calendar-alt"></i> Calendario</button>
+            </nav>
+            <div class="theme-control">
+                <label for="themeSelector">Tema:</label>
+                <select id="themeSelector">
+                    <option value="light">Claro</option>
+                    <option value="dark">Oscuro</option>
                 </select>
-                <label for="convertCurrency" style="margin-left: 1rem;">Convertir a COP:</label>
-                <input type="checkbox" id="convertCurrency" checked>
             </div>
-            <div class="exchange-rates">
-                <div class="trm-field" id="trmUSD" style="display: none;">
-                    <label for="rateUSD">TRM USD (COP por 1 USD):</label>
-                    <input type="number" id="rateUSD" value="4100" step="0.1" min="0">
+        </aside>
+        <main>
+            <!-- Información General -->
+            <section id="informacion" class="tab-content active">
+                <header>
+                    <h2>Información General</h2>
+                    <div class="actions">
+                        <button id="duplicateProject" class="action-btn"><i class="fas fa-copy"></i> Duplicar Proyecto</button>
+                    </div>
+                </header>
+                <div class="info-container">
+                    <div class="card">
+                        <h3><i class="fas fa-building"></i> Datos del Proyecto</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="nombreProyecto"><i class="fas fa-project-diagram"></i> Nombre del Proyecto <span class="required">*</span></label>
+                                <input type="text" id="nombreProyecto" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="numeroContrato"><i class="fas fa-hashtag"></i> Número de Contrato</label>
+                                <input type="text" id="numeroContrato">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="nombreContratante"><i class="fas fa-user"></i> Contratante <span class="required">*</span></label>
+                                <input type="text" id="nombreContratante" required list="contratanteList">
+                                <datalist id="contratanteList"></datalist>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field full-width">
+                                <label for="descripcion"><i class="fas fa-align-left"></i> Descripción</label>
+                                <textarea id="descripcion" rows="4"></textarea>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="ubicacion"><i class="fas fa-map-marker-alt"></i> Ubicación</label>
+                                <input type="text" id="ubicacion">
+                                <span class="error-message"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-file-signature"></i> Detalles del Contrato</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="tipoContrato"><i class="fas fa-list-alt"></i> Tipo de Contrato</label>
+                                <select id="tipoContrato">
+                                    <option value="Obra">Obra</option>
+                                    <option value="Servicios">Servicios</option>
+                                    <option value="Suministro">Suministro</option>
+                                </select>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="estadoContrato"><i class="fas fa-tasks"></i> Estado</label>
+                                <select id="estadoContrato">
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="En Ejecución">En Ejecución</option>
+                                    <option value="Finalizado">Finalizado</option>
+                                </select>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="fechaInicio"><i class="fas fa-calendar-day"></i> Fecha de Anticipo <span class="required">*</span></label>
+                                <input type="date" id="fechaInicio" required>
+                                <span class="error-message"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-tools"></i> Especificaciones Técnicas</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="cantidad"><i class="fas fa-ruler"></i> Cantidad <span class="required">*</span></label>
+                                <input type="number" id="cantidad" min="0" step="1" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="unidadMedida"><i class="fas fa-balance-scale"></i> Unidad de Medida</label>
+                                <select id="unidadMedida">
+                                    <option value="M2">M²</option>
+                                    <option value="M3">M³</option>
+                                    <option value="Unidad">Unidad</option>
+                                </select>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="material"><i class="fas fa-cubes"></i> Material</label>
+                                <input type="text" id="material">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="marca"><i class="fas fa-tag"></i> Marca</label>
+                                <input type="text" id="marca">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="importacion"><i class="fas fa-globe"></i> Importación</label>
+                                <select id="importacion">
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="disponibleInventario"><i class="fas fa-warehouse"></i> Disponible en Inventario</label>
+                                <select id="disponibleInventario">
+                                    <option value="Sí">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="tiemposImportacion"><i class="fas fa-clock"></i> Tiempos de Importación (días)</label>
+                                <input type="number" id="tiemposImportacion" min="0" step="1">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="fechaLlegadaMaterial"><i class="fas fa-truck"></i> Fecha de Llegada Material</label>
+                                <input type="date" id="fechaLlegadaMaterial" readonly>
+                                <span class="error-message"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-star"></i> Clasificación del Proyecto</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="nivelComplejidad"><i class="fas fa-tachometer-alt"></i> Nivel de Complejidad</label>
+                                <select id="nivelComplejidad">
+                                    <option value="Básico">Básico</option>
+                                    <option value="Intermedio">Intermedio</option>
+                                    <option value="Alto">Alto</option>
+                                    <option value="Muy Alto">Muy Alto</option>
+                                </select>
+                            </div>
+                            <div class="field full-width">
+                                <label for="complejidadComentarios"><i class="fas fa-comment"></i> Comentarios sobre Complejidad</label>
+                                <textarea id="complejidadComentarios" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <table id="complejidadTable">
+                            <thead>
+                                <tr>
+                                    <th>Nivel</th>
+                                    <th>Descripción</th>
+                                    <th>Tiempo Estimado (días)</th>
+                                    <th>Recursos Necesarios</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Básico</td>
+                                    <td>Proyectos simples con requerimientos claros</td>
+                                    <td>30-60</td>
+                                    <td>Mínimos</td>
+                                </tr>
+                                <tr>
+                                    <td>Intermedio</td>
+                                    <td>Proyectos con cierta complejidad técnica</td>
+                                    <td>60-120</td>
+                                    <td>Moderados</td>
+                                </tr>
+                                <tr>
+                                    <td>Alto</td>
+                                    <td>Proyectos complejos con múltiples variables</td>
+                                    <td>120-180</td>
+                                    <td>Altos</td>
+                                </tr>
+                                <tr>
+                                    <td>Muy Alto</td>
+                                    <td>Proyectos de alta complejidad y riesgo</td>
+                                    <td>180+</td>
+                                    <td>Muy Altos</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="trm-field" id="trmEUR" style="display: none;">
-                    <label for="rateEUR">TRM EUR (COP por 1 EUR):</label>
-                    <input type="number" id="rateEUR" value="4500" step="0.1" min="0">
+            </section>
+
+            <!-- Aspectos Financieros -->
+            <section id="financieros" class="tab-content">
+                <header>
+                    <h2>Aspectos Financieros</h2>
+                    <div class="actions">
+                        <button id="recalculate" class="action-btn"><i class="fas fa-sync-alt"></i> Recalcular</button>
+                    </div>
+                </header>
+                <div class="financial-container">
+                    <div class="card">
+                        <h3><i class="fas fa-money-bill-wave"></i> Entradas Principales</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="valorSubtotal"><i class="fas fa-coins"></i> Costo Directo</label>
+                                <input type="number" id="valorSubtotal" min="0" step="1000" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="currency"><i class="fas fa-globe"></i> Moneda</label>
+                                <select id="currency">
+                                    <option value="COP">COP</option>
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="convertCurrency"><i class="fas fa-exchange-alt"></i> Convertir a COP</label>
+                                <input type="checkbox" id="convertCurrency" checked>
+                            </div>
+                            <div class="field" id="trmUSD" style="display: none;">
+                                <label for="rateUSD"><i class="fas fa-dollar-sign"></i> TRM USD</label>
+                                <input type="number" id="rateUSD" value="4100" min="0" step="10">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field" id="trmEUR" style="display: none;">
+                                <label for="rateEUR"><i class="fas fa-euro-sign"></i> TRM EUR</label>
+                                <input type="number" id="rateEUR" value="4500" min="0" step="10">
+                                <span class="error-message"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-file-invoice"></i> Información de Facturación</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="direccionRadicacion"><i class="fas fa-envelope"></i> Dirección de Radicación</label>
+                                <input type="text" id="direccionRadicacion">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="nombreRadica"><i class="fas fa-user"></i> Nombre de quien Radica</label>
+                                <input type="text" id="nombreRadica">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="fechaCierreContable"><i class="fas fa-calendar-alt"></i> Fecha de Cierre Contable</label>
+                                <input type="date" id="fechaCierreContable">
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field full-width">
+                                <label for="documentosAdjuntos"><i class="fas fa-paperclip"></i> Documentos adjuntos a Facturación</label>
+                                <textarea id="documentosAdjuntos" rows="3"></textarea>
+                                <span class="error-message"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card aiu-card">
+                        <h3><i class="fas fa-percentage"></i> AIU (Administración, Imprevistos, Utilidad)</h3>
+                        <div class="field">
+                            <label for="conAIU"><i class="fas fa-toggle-on"></i> Incluir AIU</label>
+                            <input type="checkbox" id="conAIU">
+                        </div>
+                        <div class="aiu-section">
+                            <div class="form-group">
+                                <div class="field">
+                                    <label for="administracion"><i class="fas fa-user-tie"></i> Administración (%)</label>
+                                    <input type="number" id="administracion" min="0" max="100" value="10" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                                <div class="field">
+                                    <label for="imprevistos"><i class="fas fa-exclamation-triangle"></i> Imprevistos (%)</label>
+                                    <input type="number" id="imprevistos" min="0" max="100" value="5" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                                <div class="field">
+                                    <label for="utilidad"><i class="fas fa-chart-line"></i> Utilidad (%)</label>
+                                    <input type="number" id="utilidad" min="0" max="100" value="15" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                                <div class="field">
+                                    <label for="iva"><i class="fas fa-tax"></i> IVA (%)</label>
+                                    <input type="number" id="iva" min="0" max="100" value="19" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card results-card">
+                        <h3><i class="fas fa-calculator"></i> Resultados Financieros</h3>
+                        <div class="financial-results">
+                            <div class="result-item" title="Costo inicial sin ajustes">
+                                <span class="label">Costo Directo</span>
+                                <span class="value" id="valorSubtotalDisplay"></span>
+                            </div>
+                            <div class="result-item" title="Costo antes de AIU">
+                                <span class="label">Subtotal sin AIU</span>
+                                <span class="value" id="valorSubtotalSinAIU"></span>
+                            </div>
+                            <div class="result-item" title="Costo de administración">
+                                <span class="label">Administración</span>
+                                <span class="value" id="valorAdministracion"></span>
+                            </div>
+                            <div class="result-item" title="Reservas para imprevistos">
+                                <span class="label">Imprevistos</span>
+                                <span class="value" id="valorImprevistos"></span>
+                            </div>
+                            <div class="result-item" title="Ganancia proyectada">
+                                <span class="label">Utilidad</span>
+                                <span class="value" id="valorUtilidad"></span>
+                            </div>
+                            <div class="result-item" title="Total de AIU (Admin + Imprev + Util)">
+                                <span class="label">Total AIU</span>
+                                <span class="value" id="totalAIU"></span>
+                            </div>
+                            <div class="result-item" title="Subtotal incluyendo AIU">
+                                <span class="label">Subtotal con AIU</span>
+                                <span class="value" id="valorSubtotalConAIU"></span>
+                            </div>
+                            <div class="result-item" title="Impuesto sobre el valor agregado">
+                                <span class="label">IVA</span>
+                                <span class="value" id="valorIVA"></span>
+                            </div>
+                            <div class="result-item highlight" title="Valor final del contrato">
+                                <span class="label">Valor Total</span>
+                                <span class="value" id="valorTotal"></span>
+                            </div>
+                            <div class="sub-section">
+                                <h4>Pagos Asociados</h4>
+                                <div class="field inline">
+                                    <label for="porcentajeAnticipo"><i class="fas fa-hand-holding-usd"></i> Anticipo (%)</label>
+                                    <input type="number" id="porcentajeAnticipo" min="0" max="100" value="30" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                                <div class="result-item" title="Monto inicial a recibir">
+                                    <span class="label">Anticipo</span>
+                                    <span class="value" id="valorAnticipo"></span>
+                                </div>
+                                <div class="result-item" title="Monto por avance de obra">
+                                    <span class="label">Avance de Obra</span>
+                                    <span class="percentage" id="porcentajeAvance"></span>
+                                    <span class="value" id="valorAvance"></span>
+                                </div>
+                                <div class="field inline">
+                                    <label for="porcentajeRetenido"><i class="fas fa-lock"></i> Retenido (%)</label>
+                                    <input type="number" id="porcentajeRetenido" min="0" max="100" value="10" step="0.1">
+                                    <span class="error-message"></span>
+                                </div>
+                                <div class="result-item" title="Monto retenido hasta finalización">
+                                    <span class="label">Retenido</span>
+                                    <span class="value" id="valorRetenido"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="financial-section total-section">
-                <h3 title="Costo inicial del contrato">Costo Directo</h3>
-                <table id="costoDirectoTable">
-                    <thead><tr><th>Concepto</th><th>Valor</th></tr></thead>
-                    <tbody>
-                        <tr><td>Costo Directo</td><td><input type="number" id="valorSubtotal" value="10000000" min="0" step="1000" required><span id="valorSubtotalDisplay">$ 0.00</span></td></tr>
-                        <tr class="subtotal"><td>Subtotal sin AIU</td><td id="valorSubtotalSinAIU">$ 0.00</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="financial-section aiu-section cop-only">
-                <h3 title="Administración, Imprevistos y Utilidad">AIU <input type="checkbox" id="conAIU" checked></h3>
-                <div class="aiu-fields">
-                    <table id="aiuTable">
-                        <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
-                        <tbody>
-                            <tr><td>Administración</td><td><input type="number" id="administracion" value="6" min="0" max="100" step="0.1"></td><td id="valorAdministracion">$ 0.00</td></tr>
-                            <tr><td>Imprevistos</td><td><input type="number" id="imprevistos" value="6" min="0" max="100" step="0.1"></td><td id="valorImprevistos">$ 0.00</td></tr>
-                            <tr><td>Utilidad</td><td><input type="number" id="utilidad" value="6" min="0" max="100" step="0.1"></td><td id="valorUtilidad">$ 0.00</td></tr>
-                            <tr class="total-aiu"><td>Total AIU</td><td></td><td id="totalAIU">$ 0.00</td></tr>
-                            <tr class="subtotal"><td>Subtotal con AIU</td><td></td><td id="valorSubtotalConAIU">$ 0.00</td></tr>
-                        </tbody>
-                    </table>
+            </section>
+
+            <!-- Condiciones de Ejecución -->
+            <section id="ejecucion" class="tab-content">
+                <header>
+                    <h2>Condiciones de Ejecución</h2>
+                    <div class="actions">
+                        <button id="previewCronograma" class="action-btn"><i class="fas fa-eye"></i> Vista Previa</button>
+                        <button id="recalculateCronograma" class="action-btn"><i class="fas fa-sync-alt"></i> Recalcular</button>
+                        <button data-action="addContract" class="action-btn primary"><i class="fas fa-plus"></i> Agregar al Historial</button>
+                    </div>
+                </header>
+                <div class="execution-container">
+                    <div class="card">
+                        <h3><i class="fas fa-clock"></i> Planificación</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label><i class="fas fa-calendar-day"></i> Fecha de Anticipo (Ref.)</label>
+                                <p id="fechaInicioRef"></p>
+                            </div>
+                            <div class="field">
+                                <label for="tiempoPlaneacion"><i class="fas fa-brain"></i> Tiempo de Planeación (semanas) <span class="required">*</span></label>
+                                <input type="number" id="tiempoPlaneacion" min="1" step="1" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="tiempoCronogramaFinal"><i class="fas fa-calendar-alt"></i> Tiempo Entrega Cronograma Final (semanas) <span class="required">*</span></label>
+                                <input type="number" id="tiempoCronogramaFinal" min="1" step="1" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="tiempoFabricacionDespacho"><i class="fas fa-industry"></i> Tiempo Fabricación y/o Despacho (semanas) <span class="required">*</span></label>
+                                <input type="number" id="tiempoFabricacionDespacho" min="1" step="1" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="tiempoInstalacion"><i class="fas fa-tools"></i> Tiempo de Instalación (meses) <span class="required">*</span></label>
+                                <input type="number" id="tiempoInstalacion" min="1" step="1" required>
+                                <span class="error-message"></span>
+                            </div>
+                            <div class="field">
+                                <label for="periodicidadCortes"><i class="fas fa-cut"></i> Periodicidad de Cortes</label>
+                                <select id="periodicidadCortes">
+                                    <option value="semanal">Semanal</option>
+                                    <option value="quincenal">Quincenal</option>
+                                    <option value="mensual">Mensual</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label><i class="fas fa-calendar-check"></i> Fecha Final</label>
+                                <p id="fechaFinal"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-timeline"></i> Cronograma</h3>
+                        <div class="cronograma-container">
+                            <table id="cronogramaTable">
+                                <thead>
+                                    <tr><th>Etapa</th><th>Fecha</th><th>Cantidad</th><th>Valor</th></tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                            <p id="cronograma" style="display: none;">No hay cronograma disponible aún.</p>
+                            <div class="actions" style="margin-top: 20px;">
+                                <button id="exportCronogramaImage" class="action-btn"><i class="fas fa-image"></i> Exportar Imagen</button>
+                                <button id="toggleCronogramaChart" class="action-btn"><i class="fas fa-chart-bar"></i> Mostrar Gráfico</button>
+                            </div>
+                            <canvas id="cronogramaChart" style="display: none; margin-top: 20px;"></canvas>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="financial-section iva-section cop-only">
-                <h3 title="Impuesto al Valor Agregado">Impuestos</h3>
-                <table id="ivaTable">
-                    <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
-                    <tbody>
-                        <tr><td>IVA</td><td><input type="number" id="iva" value="19" min="0" max="100" step="0.1"></td><td id="valorIVA">$ 0.00</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="financial-section total-final-section">
-                <h3 title="Valor total del contrato">Valor Total</h3>
-                <table id="valorTotalTable">
-                    <thead><tr><th>Concepto</th><th>Valor</th></tr></thead>
-                    <tbody>
-                        <tr><td>Valor Total</td><td id="valorTotal">$ 0.00</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="financial-section payment-section">
-                <h3 title="Distribución de pagos">Forma de Pago</h3>
-                <table id="formaPagoTable">
-                    <thead><tr><th>Concepto</th><th>Porcentaje (%)</th><th>Valor</th></tr></thead>
-                    <tbody>
-                        <tr><td>Anticipo</td><td><input type="number" id="porcentajeAnticipo" value="30" min="0" max="100" step="0.1"></td><td id="valorAnticipo">$ 0.00</td></tr>
-                        <tr><td>Avance de Obra</td><td id="porcentajeAvance">-</td><td id="valorAvance">$ 0.00</td></tr>
-                        <tr><td>Retenido</td><td><input type="number" id="porcentajeRetenido" value="5" min="0" max="100" step="0.1"></td><td id="valorRetenido">$ 0.00</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
+            </section>
 
-        <section id="ejecucion" class="tab-content" role="tabpanel">
-            <h2>Condiciones de Ejecución</h2>
-            <table id="ejecucionTable">
-                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
-                <tbody>
-                    <tr><td>Plazo de Ejecución (días):</td><td><input type="number" id="plazoEjecucion" value="90" min="1" required><span class="error-message"></span></td></tr>
-                    <tr><td>Fecha de Inicio:</td><td><input type="date" id="fechaInicio" value="2025-01-01" required><span class="error-message"></span></td></tr>
-                    <tr><td>Fecha Final:</td><td><p id="fechaFinal">No calculada</p></td></tr>
-                    <tr><td>Periodicidad de Cortes:</td><td><select id="periodicidadCortes"><option value="semanal">Semanal (7 días)</option><option value="quincenal" selected>Quincenal (15 días)</option></select><span class="error-message"></span></td></tr>
-                    <tr><td>Tiempo para Pago de Facturas (días):</td><td><input type="number" id="tiempoPagoFacturas" value="15" min="1"><span class="error-message"></span></td></tr>
-                    <tr><td>Unidad de Medida:</td><td><select id="unidadMedida"><option value="M2" selected>M2</option><option value="Unidades">Unidades</option><option value="Metros">Metros</option><option value="Kilogramos">Kilogramos</option><option value="Litros">Litros</option><option value="Horas">Horas</option></select></td></tr>
-                    <tr><td>Cantidad:</td><td><input type="number" id="cantidad" value="90" min="0"><span class="error-message"></span></td></tr>
-                    <tr><td>Alcance del Contrato:</td><td><textarea id="alcanceContrato">Suministro de materiales e instalación eléctrica completa</textarea><span class="error-message"></span></td></tr>
-                    <tr><td>Cronograma de Trabajo:</td><td><p id="cronograma">No calculado</p></td></tr>
-                </tbody>
-            </table>
-            <table id="cronogramaTable" style="display: none;">
-                <thead><tr><th>Etapa</th><th>Fecha</th><th>Cantidad</th><th>Valor</th></tr></thead>
-                <tbody></tbody>
-            </table>
-            <div class="toolbar">
-                <button data-action="addContract"><i class="fas fa-plus"></i> Agregar Contrato Actual</button>
-                <button data-action="downloadPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-            </div>
-        </section>
+            <!-- Histórico de Contratos -->
+            <section id="historico" class="tab-content">
+                <header>
+                    <h2>Histórico de Contratos</h2>
+                    <div class="actions">
+                        <div class="search-bar">
+                            <input type="text" id="searchHistory" placeholder="Buscar por proyecto, contratante, material o marca">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <button id="compareContracts" class="action-btn"><i class="fas fa-balance-scale"></i> Comparar</button>
+                        <button data-action="downloadHistoryPDF" class="action-btn"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <button data-action="downloadHistoryExcel" class="action-btn"><i class="fas fa-file-excel"></i> Excel</button>
+                        <button data-action="clearHistory" class="action-btn danger"><i class="fas fa-trash"></i> Borrar</button>
+                    </div>
+                </header>
+                <div class="history-container">
+                    <div class="card">
+                        <h3><i class="fas fa-list"></i> Filtros Avanzados</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="filterEstado"><i class="fas fa-tasks"></i> Estado</label>
+                                <select id="filterEstado">
+                                    <option value="">Todos</option>
+                                    <option value="Pendiente">Pendiente</option>
+                                    <option value="En Ejecución">En Ejecución</option>
+                                    <option value="Finalizado">Finalizado</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label for="filterFechaInicio"><i class="fas fa-calendar-day"></i> Fecha Inicio</label>
+                                <input type="date" id="filterFechaInicio">
+                            </div>
+                            <div class="field">
+                                <label for="filterFechaFin"><i class="fas fa-calendar-check"></i> Fecha Fin</label>
+                                <input type="date" id="filterFechaFin">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-table"></i> Lista de Contratos</h3>
+                        <table id="tablaHistorico">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-project-diagram"></i> Proyecto</th>
+                                    <th><i class="fas fa-user"></i> Contratante</th>
+                                    <th><i class="fas fa-ruler"></i> Cantidad</th>
+                                    <th><i class="fas fa-cubes"></i> Material</th>
+                                    <th><i class="fas fa-tag"></i> Marca</th>
+                                    <th><i class="fas fa-star"></i> Complejidad</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Valor Total</th>
+                                    <th><i class="fas fa-hourglass-half"></i> Plazo</th>
+                                    <th><i class="fas fa-calendar-day"></i> Inicio</th>
+                                    <th><i class="fas fa-calendar-check"></i> Fin</th>
+                                    <th><i class="fas fa-tools"></i> Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-chart-pie"></i> Resumen</h3>
+                        <div class="summary">
+                            <p>Total Contratos: <span id="totalContratos">0</span></p>
+                            <p>Valor Total Acumulado: <span id="valorTotalAcumulado">$0 COP</span></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <section id="historico" class="tab-content" role="tabpanel">
-            <h2>Histórico de Contratos</h2>
-            <div class="toolbar">
-                <button data-action="downloadHistoryPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-                <button data-action="downloadHistoryExcel"><i class="fas fa-file-excel"></i> Descargar Excel</button>
-                <button data-action="clearHistory" style="background: #e53935;"><i class="fas fa-trash-alt"></i> Borrar Historial</button>
-            </div>
-            <table id="tablaHistorico">
-                <thead>
-                    <tr>
-                        <th>Proyecto</th>
-                        <th>Contratante</th>
-                        <th>Cantidad</th>
-                        <th>Valor Total</th>
-                        <th>Plazo</th>
-                        <th>Inicio</th>
-                        <th>Fin</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </section>
+            <!-- Calendario Anual -->
+            <section id="calendario" class="tab-content">
+                <header>
+                    <h2>Calendario Anual</h2>
+                    <div class="actions">
+                        <button id="prevYear" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+                        <span id="calendarYear" class="calendar-year"></span>
+                        <button id="nextYear" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
+                        <button id="toggleBars" class="action-btn"><i class="fas fa-chart-bar"></i></button>
+                        <button id="changeView" class="action-btn"><i class="fas fa-eye"></i> Cambiar Vista</button>
+                        <button data-action="downloadCalendarPDF" class="action-btn"><i class="fas fa-file-pdf"></i> PDF</button>
+                        <button data-action="downloadCalendarExcel" class="action-btn"><i class="fas fa-file-excel"></i> Excel</button>
+                        <button id="exportCalendarImage" class="action-btn"><i class="fas fa-image"></i> Imagen</button>
+                    </div>
+                </header>
+                <div class="calendar-container">
+                    <div class="card">
+                        <h3><i class="fas fa-filter"></i> Filtros</h3>
+                        <div class="form-group">
+                            <div class="field">
+                                <label for="filterProyecto"><i class="fas fa-project-diagram"></i> Proyecto</label>
+                                <select id="filterProyecto">
+                                    <option value="">Todos</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><i class="fas fa-calendar-alt"></i> Calendario</h3>
+                        <table id="calendarioTable">
+                            <thead>
+                                <tr>
+                                    <th>Proyecto</th>
+                                    <th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
+                                    <th>Jul</th><th>Ago</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dic</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                            <tfoot></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
-        <section id="calendario" class="tab-content" role="tabpanel">
-            <h2>Calendario Anual</h2>
-            <div class="calendar-controls">
-                <button id="prevYear"><i class="fas fa-chevron-left"></i> Año Anterior</button>
-                <span id="calendarYear">2025</span>
-                <button id="nextYear"><i class="fas fa-chevron-right"></i> Año Siguiente</button>
-                <button id="toggleBars" title="Alternar barras"><i class="fas fa-chart-bar"></i></button>
-            </div>
-            <div class="toolbar">
-                <button data-action="downloadCalendarExcel"><i class="fas fa-file-excel"></i> Descargar Excel</button>
-                <button data-action="downloadCalendarPDF"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
-            </div>
-            <div class="calendar-wrapper">
-                <table id="calendarioTable">
-                    <thead>
-                        <tr>
-                            <th>Proyecto</th>
-                            <th>Ene</th><th>Feb</th><th>Mar</th><th>Abr</th><th>May</th><th>Jun</th>
-                            <th>Jul</th><th>Ago</th><th>Sep</th><th>Oct</th><th>Nov</th><th>Dic</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                    <tfoot></tfoot>
-                </table>
-            </div>
-        </section>
-
-        <footer class="toolbar">
-            <button data-action="saveJSON"><i class="fas fa-save"></i> Guardar JSON</button>
-            <input type="file" id="jsonFile" accept=".json" hidden aria-label="Cargar archivo JSON">
-            <button data-action="loadJSON"><i class="fas fa-upload"></i> Cargar JSON</button>
-        </footer>
-    </main>
+            <footer>
+                <button data-action="downloadPDF" class="action-btn"><i class="fas fa-file-pdf"></i> Descargar PDF</button>
+                <button data-action="saveJSON" class="action-btn"><i class="fas fa-save"></i> Guardar JSON</button>
+                <button data-action="loadJSON" class="action-btn"><i class="fas fa-upload"></i> Cargar JSON</button>
+                <input type="file" id="jsonFile" style="display: none;" accept=".json">
+            </footer>
+        </main>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

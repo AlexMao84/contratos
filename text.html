@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test PDF</title>
+    <script src="lib/jspdf.umd.min.js" defer></script>
+    <script src="lib/jspdf.plugin.autotable.min.js" defer></script>
+    <script>
+        function testPDF() {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                console.error('jsPDF no está cargado');
+                alert('Error: jsPDF no está disponible. Revisa la consola y la pestaña Network.');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            if (typeof doc.autoTable !== 'function') {
+                console.error('AutoTable no está disponible');
+                alert('Error: AutoTable no está disponible. Revisa la consola.');
+                return;
+            }
+            doc.autoTable({
+                head: [['Test']],
+                body: [['Funciona']]
+            });
+            doc.save('test.pdf');
+            console.log('PDF generado con éxito');
+        }
+
+        // Verificación inicial al cargar la página
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                console.log('window.jspdf:', window.jspdf);
+                console.log('window.jspdf.jsPDF:', window.jspdf?.jsPDF);
+                console.log('autoTable en prototype:', window.jspdf?.jsPDF.prototype.autoTable);
+                console.log('window.autoTable:', window.autoTable);
+            }, 1000); // Espera 1 segundo para que las librerías se carguen
+        });
+    </script>
+</head>
+<body>
+    <button onclick="testPDF()">Generar PDF</button>
+</body>
+</html>

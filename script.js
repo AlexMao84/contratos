@@ -8,18 +8,17 @@ class ContractApp {
             notifications: [],
             showBars: true,
             currency: 'COP',
-            convertCurrency: true
+            convertCurrency: true,
+            searchQuery: '',
+            cronogramaData: [],
+            showCronogramaChart: false,
+            calendarView: 'bars',
+            historySort: { column: null, ascending: true }
         };
-        this.exchangeRates = {
-            COP: 1,
-            USD: 4100,
-            EUR: 4500
-        };
-        this.currencySymbols = {
-            COP: '$',
-            USD: '$',
-            EUR: '€'
-        };
+        this.exchangeRates = { COP: 1, USD: 4100, EUR: 4500 };
+        this.currencySymbols = { COP: '$', USD: '$', EUR: '€' };
+        this.lastFinancialHash = '';
+        this.chart = null;
         this.init();
     }
 
@@ -30,36 +29,51 @@ class ContractApp {
         this.updateTRMVisibility();
         this.updateCOPSections();
         this.calculateFinancials();
+        this.calculateFechaLlegadaMaterial();
         this.updateTabContent();
         this.checkNotifications();
+        this.updateContratanteList();
+        this.updateProyectoFilter();
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        this.setTheme(savedTheme);
+        document.getElementById('themeSelector').value = savedTheme;
     }
 
     loadInitialData() {
         if (!this.state.contractsHistory.length) {
             this.state.contractsHistory.push({
-                nombreProyecto: "Construcción Bogotá",
-                numeroContrato: "C-001-2025",
-                contratante: "Ejemplo Contratante",
-                cantidad: 90,
+                nombreProyecto: "Proyecto Inicial",
+                numeroContrato: "C-001",
+                contratante: "Cliente Ejemplo",
+                descripcion: "Descripción de prueba",
+                ubicacion: "Ciudad",
+                tipoContrato: "Obra",
+                estadoContrato: "En Ejecución",
+                cantidad: 100,
                 unidadMedida: "M2",
-                valorTotal: 10000000,
-                plazoEjecucion: 90,
+                material: "Concreto",
+                marca: "MarcaX",
+                importacion: "No",
+                disponibleInventario: "Sí",
+                tiemposImportacion: 0,
+                fechaLlegadaMaterial: "",
+                nivelComplejidad: "Básico",
+                complejidadComentarios: "",
+                valorTotal: 5000000,
+                plazoEjecucion: 0,
                 fechaInicio: "2025-01-01",
-                fechaFinal: "2025-03-31"
+                fechaFinal: "",
+                tiempoPlaneacion: 4,
+                tiempoCronogramaFinal: 1,
+                tiempoFabricacionDespacho: 2,
+                tiempoInstalacion: 3,
+                direccionRadicacion: "",
+                nombreRadica: "",
+                fechaCierreContable: "",
+                documentosAdjuntos: ""
             });
             localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
         }
-    }
-
-    loadFormState() {
-        const savedState = JSON.parse(localStorage.getItem('formState') || '{}');
-        Object.entries(savedState).forEach(([key, value]) => {
-            const el = document.getElementById(key);
-            if (el) {
-                if (el.type === 'checkbox') el.checked = value;
-                else el.value = value;
-            }
-        });
     }
 
     setupEventListeners() {
@@ -87,13 +101,32 @@ class ContractApp {
         });
         document.querySelectorAll('input, select, textarea').forEach(el =>
             el.addEventListener('input', () => this.handleInputChange(el)));
-        document.querySelectorAll('.toolbar button, footer button').forEach(btn =>
+        document.querySelectorAll('.actions button, footer button').forEach(btn =>
             btn.addEventListener('click', () => this.handleAction(btn.dataset.action)));
-        document.getElementById('conAIU')?.addEventListener('change', () => this.toggleAIU());
+        document.getElementById('conAIU')?.addEventListener('change', () => this.calculateFinancials());
         document.getElementById('prevYear')?.addEventListener('click', () => this.changeCalendarYear(-1));
         document.getElementById('nextYear')?.addEventListener('click', () => this.changeCalendarYear(1));
         document.getElementById('toggleBars')?.addEventListener('click', () => this.toggleBars());
         document.getElementById('jsonFile')?.addEventListener('change', (e) => this.loadJSON(e));
+        document.getElementById('themeSelector')?.addEventListener('change', (e) => this.setTheme(e.target.value));
+        document.getElementById('searchHistory')?.addEventListener('input', (e) => {
+            this.state.searchQuery = e.target.value.toLowerCase();
+            this.loadHistoryTable();
+        });
+        document.getElementById('recalculate')?.addEventListener('click', () => this.calculateFinancials());
+        document.getElementById('duplicateProject')?.addEventListener('click', () => this.duplicateProject());
+        document.getElementById('previewCronograma')?.addEventListener('click', () => this.calculateExecutionDates(true));
+        document.getElementById('recalculateCronograma')?.addEventListener('click', () => this.calculateExecutionDates());
+        document.getElementById('exportCronogramaImage')?.addEventListener('click', () => this.exportCronogramaImage());
+        document.getElementById('toggleCronogramaChart')?.addEventListener('click', () => this.toggleCronogramaChart());
+        document.getElementById('filterEstado')?.addEventListener('change', () => this.loadHistoryTable());
+        document.getElementById('filterFechaInicio')?.addEventListener('change', () => this.loadHistoryTable());
+        document.getElementById('filterFechaFin')?.addEventListener('change', () => this.loadHistoryTable());
+        document.getElementById('compareContracts')?.addEventListener('click', () => this.compareContracts());
+        document.getElementById('changeView')?.addEventListener('click', () => this.toggleCalendarView());
+        document.getElementById('exportCalendarImage')?.addEventListener('click', () => this.exportCalendarImage());
+        document.getElementById('filterProyecto')?.addEventListener('change', () => this.loadCalendarTable());
+        document.querySelector('#tablaHistorico thead')?.addEventListener('click', (e) => this.sortHistoryTable(e));
     }
 
     handleInputChange(el) {
@@ -101,316 +134,603 @@ class ContractApp {
         this.saveFormState();
         if (this.state.activeTab === 'financieros') this.calculateFinancials();
         if (this.state.activeTab === 'ejecucion') this.calculateExecutionDates();
+        if (el.id === 'fechaInicio' || el.id === 'tiemposImportacion' || el.id === 'importacion') this.calculateFechaLlegadaMaterial();
         this.checkNotifications();
     }
 
-    validateInput(el) {
-        const errorEl = el.nextElementSibling?.classList.contains('error-message') ? el.nextElementSibling : null;
-        if (!errorEl) return;
-        if (el.required && !el.value) {
-            errorEl.textContent = 'Este campo es obligatorio';
-            errorEl.style.display = 'inline';
-        } else if (el.type === 'number' && (el.value < el.min || isNaN(el.value))) {
-            errorEl.textContent = `Ingrese un número válido (mínimo ${el.min})`;
-            errorEl.style.display = 'inline';
-        } else if (el.type === 'email' && el.value && !el.value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            errorEl.textContent = 'Ingrese un correo válido';
-            errorEl.style.display = 'inline';
-        } else {
-            errorEl.style.display = 'none';
-        }
-    }
-
-    handleAction(action) {
-        const actions = {
-            saveJSON: () => this.saveJSON(),
-            loadJSON: () => document.getElementById('jsonFile')?.click(),
-            addContract: () => this.addContractToHistory(),
-            downloadHistoryPDF: () => this.generateHistoryPDF(),
-            downloadHistoryExcel: () => this.generateHistoryExcel(),
-            clearHistory: () => this.clearHistory(),
-            downloadPDF: () => this.generatePDF(),
-            downloadCalendarExcel: () => this.generateCalendarExcel(),
-            downloadCalendarPDF: () => this.generateCalendarPDF()
-        };
-        try {
-            actions[action]?.();
-        } catch (error) {
-            console.error(`Error en acción ${action}:`, error);
-            this.showNotification(`Error al ejecutar ${action}: ${error.message}`, 'error');
-        }
-    }
-
-    openTab(tabName) {
-        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-        document.querySelectorAll('.tab-button').forEach(btn => {
-            btn.classList.remove('active');
-            btn.setAttribute('aria-selected', 'false');
-        });
-        const tab = document.getElementById(tabName);
-        const btn = document.querySelector(`.tab-button[data-tab="${tabName}"]`);
-        tab.classList.add('active');
-        btn.classList.add('active');
-        btn.setAttribute('aria-selected', 'true');
-        this.state.activeTab = tabName;
+    openTab(tabId) {
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelector(`.tab-button[data-tab="${tabId}"]`).classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+        this.state.activeTab = tabId;
         this.updateTabContent();
-        if (tabName === 'ejecucion') this.calculateExecutionDates();
     }
 
-    toggleAIU() {
-        document.body.classList.toggle('aiu-active', document.getElementById('conAIU')?.checked);
-        this.calculateFinancials();
+    updateTabContent() {
+        if (this.state.activeTab === 'historico') this.loadHistoryTable();
+        if (this.state.activeTab === 'calendario') this.loadCalendarTable();
+        if (this.state.activeTab === 'ejecucion') this.calculateExecutionDates();
     }
 
-    toggleBars() {
-        this.state.showBars = !this.state.showBars;
-        document.getElementById('toggleBars').querySelector('i').classList.toggle('fa-chart-bar', this.state.showBars);
-        document.getElementById('toggleBars').querySelector('i').classList.toggle('fa-list', !this.state.showBars);
-        this.loadCalendarTable();
+    validateInput(input) {
+        const errorMessage = input.nextElementSibling;
+        if (!errorMessage || !errorMessage.classList.contains('error-message')) return;
+        if (input.hasAttribute('required') && !input.value.trim()) {
+            input.classList.add('error');
+            errorMessage.textContent = 'Este campo es obligatorio';
+        } else if (input.type === 'number' && input.value < (input.min || 0)) {
+            input.classList.add('error');
+            errorMessage.textContent = `El valor debe ser mayor o igual a ${input.min || 0}`;
+        } else {
+            input.classList.remove('error');
+            errorMessage.textContent = '';
+        }
+    }
+
+    saveFormState() {
+        const formData = {};
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            if (el.type === 'checkbox') formData[el.id] = el.checked;
+            else formData[el.id] = el.value;
+        });
+        localStorage.setItem('formData', JSON.stringify(formData));
+    }
+
+    loadFormState() {
+        const formData = JSON.parse(localStorage.getItem('formData') || '{}');
+        Object.entries(formData).forEach(([key, value]) => {
+            const el = document.getElementById(key);
+            if (el) {
+                if (el.type === 'checkbox') el.checked = value;
+                else el.value = value;
+            }
+        });
     }
 
     updateTRMVisibility() {
-        const trmUSD = document.getElementById('trmUSD');
-        const trmEUR = document.getElementById('trmEUR');
-        trmUSD.style.display = this.state.currency === 'USD' ? 'inline-block' : 'none';
-        trmEUR.style.display = this.state.currency === 'EUR' ? 'inline-block' : 'none';
+        document.getElementById('trmUSD').style.display = this.state.currency === 'USD' ? 'block' : 'none';
+        document.getElementById('trmEUR').style.display = this.state.currency === 'EUR' ? 'block' : 'none';
     }
 
     updateCOPSections() {
-        document.body.classList.toggle('cop-active', this.state.currency === 'COP' || this.state.convertCurrency);
+        const isCOP = this.state.currency === 'COP';
+        document.getElementById('convertCurrency').parentElement.style.display = isCOP ? 'none' : 'block';
     }
 
-    calculateFinancials() {
-        try {
-            const inputs = this.getFinancialInputs();
-            if (!inputs.costoDirecto || inputs.costoDirecto <= 0) {
-                throw new Error('Costo directo debe ser mayor a 0');
-            }
-            const results = this.computeFinancials(inputs);
-            this.state.financialResults = results;
-            this.updateFinancialDisplay(results);
-        } catch (error) {
-            console.error('Error en cálculo financiero:', error);
-            this.showNotification('Error en cálculos financieros: ' + error.message, 'error');
-            this.state.financialResults = null;
+    calculateFechaLlegadaMaterial() {
+        const fechaInicio = new Date(document.getElementById('fechaInicio')?.value);
+        const tiemposImportacion = parseInt(document.getElementById('tiemposImportacion')?.value) || 0;
+        const importacion = document.getElementById('importacion')?.value;
+
+        if (importacion === 'No' || isNaN(fechaInicio.getTime()) || tiemposImportacion <= 0) {
+            document.getElementById('fechaLlegadaMaterial').value = '';
+            return;
         }
+
+        const fechaLlegada = new Date(fechaInicio);
+        fechaLlegada.setDate(fechaInicio.getDate() + tiemposImportacion);
+        document.getElementById('fechaLlegadaMaterial').value = this.formatDate(fechaLlegada);
     }
 
     getFinancialInputs() {
-        const baseCostoDirecto = parseFloat(document.getElementById('valorSubtotal')?.value) || 0;
-        const costoDirecto = baseCostoDirecto;
-        const applyCOPRules = this.state.currency === 'COP' || this.state.convertCurrency;
         return {
-            costoDirecto: costoDirecto,
-            conAIU: applyCOPRules && (document.getElementById('conAIU')?.checked || false),
-            administracion: applyCOPRules ? Math.min(1, Math.max(0, (parseFloat(document.getElementById('administracion')?.value) || 0) / 100)) : 0,
-            imprevistos: applyCOPRules ? Math.min(1, Math.max(0, (parseFloat(document.getElementById('imprevistos')?.value) || 0) / 100)) : 0,
-            utilidad: applyCOPRules ? Math.min(1, Math.max(0, (parseFloat(document.getElementById('utilidad')?.value) || 0) / 100)) : 0,
-            iva: applyCOPRules ? Math.min(1, Math.max(0, (parseFloat(document.getElementById('iva')?.value) || 0) / 100)) : 0,
-            anticipo: Math.min(1, Math.max(0, (parseFloat(document.getElementById('porcentajeAnticipo')?.value) || 0) / 100)),
-            retenido: Math.min(1, Math.max(0, (parseFloat(document.getElementById('porcentajeRetenido')?.value) || 0) / 100))
+            valorSubtotal: parseFloat(document.getElementById('valorSubtotal')?.value) || 0,
+            conAIU: document.getElementById('conAIU')?.checked || false,
+            administracion: parseFloat(document.getElementById('administracion')?.value) || 0,
+            imprevistos: parseFloat(document.getElementById('imprevistos')?.value) || 0,
+            utilidad: parseFloat(document.getElementById('utilidad')?.value) || 0,
+            iva: parseFloat(document.getElementById('iva')?.value) || 0,
+            porcentajeAnticipo: parseFloat(document.getElementById('porcentajeAnticipo')?.value) || 0,
+            porcentajeRetenido: parseFloat(document.getElementById('porcentajeRetenido')?.value) || 0
         };
     }
 
-    computeFinancials({ costoDirecto, conAIU, administracion, imprevistos, utilidad, iva, anticipo, retenido }) {
-        let aiu = { admin: 0, impre: 0, util: 0, total: 0 };
+    computeFinancials({ valorSubtotal, conAIU, administracion, imprevistos, utilidad, iva, porcentajeAnticipo, porcentajeRetenido }) {
+        let subtotalSinAIU = valorSubtotal;
+        let valorAdministracion = 0, valorImprevistos = 0, valorUtilidad = 0, totalAIU = 0, subtotalConAIU = 0, valorIVA = 0, total = 0;
+
         if (conAIU) {
-            aiu = {
-                admin: costoDirecto * administracion,
-                impre: costoDirecto * imprevistos,
-                util: costoDirecto * utilidad,
-                total: costoDirecto * (administracion + imprevistos + utilidad)
-            };
+            valorAdministracion = subtotalSinAIU * (administracion / 100);
+            valorImprevistos = subtotalSinAIU * (imprevistos / 100);
+            valorUtilidad = subtotalSinAIU * (utilidad / 100);
+            totalAIU = valorAdministracion + valorImprevistos + valorUtilidad;
+            subtotalConAIU = subtotalSinAIU + totalAIU;
+        } else {
+            subtotalConAIU = subtotalSinAIU;
         }
-        const subtotalSinAIU = costoDirecto;
-        const subtotalConAIU = subtotalSinAIU + aiu.total;
-        const ivaBase = conAIU ? aiu.util : subtotalSinAIU;
-        const ivaValue = ivaBase * iva;
-        const total = subtotalConAIU + ivaValue;
-        const avanceObra = 1 - anticipo - retenido;
+
+        valorIVA = subtotalConAIU * (iva / 100);
+        total = subtotalConAIU + valorIVA;
+
+        const valorAnticipo = total * (porcentajeAnticipo / 100);
+        const valorRetenido = total * (porcentajeRetenido / 100);
+        const porcentajeAvance = 100 - porcentajeAnticipo - porcentajeRetenido;
+        const valorAvance = total * (porcentajeAvance / 100);
+
         return {
-            costoDirecto,
-            aiu,
             subtotalSinAIU,
+            valorAdministracion,
+            valorImprevistos,
+            valorUtilidad,
+            totalAIU,
             subtotalConAIU,
-            iva: ivaValue,
+            valorIVA,
             total,
-            anticipo: total * anticipo,
-            retenido: total * retenido,
-            avanceObra: total * avanceObra
+            valorAnticipo,
+            porcentajeAvance,
+            valorAvance,
+            valorRetenido
         };
     }
 
-    updateFinancialDisplay({ costoDirecto, aiu, subtotalSinAIU, subtotalConAIU, iva, total, anticipo, retenido, avanceObra }) {
-        const format = (val) => this.formatCurrency(val);
-        const elements = {
-            valorSubtotalDisplay: costoDirecto,
-            valorSubtotalSinAIU: subtotalSinAIU,
-            valorAdministracion: aiu.admin,
-            valorImprevistos: aiu.impre,
-            valorUtilidad: aiu.util,
-            totalAIU: aiu.total,
-            valorSubtotalConAIU: subtotalConAIU,
-            valorIVA: iva,
-            valorTotal: total,
-            valorAnticipo: anticipo,
-            valorRetenido: retenido,
-            valorAvance: avanceObra,
-            porcentajeAvance: (avanceObra / total * 100).toFixed(1) + '%'
-        };
-        Object.entries(elements).forEach(([id, value]) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = id.includes('porcentaje') ? value : format(value);
-            else console.warn(`Elemento con ID ${id} no encontrado`);
-        });
-    }
+    calculateFinancials() {
+        const inputs = this.getFinancialInputs();
+        const hash = JSON.stringify(inputs);
+        if (this.lastFinancialHash === hash) return;
+        this.lastFinancialHash = hash;
 
-    calculateExecutionDates() {
-        try {
-            const inputs = this.getExecutionInputs();
-            if (!inputs.startDate || isNaN(inputs.startDate.getTime())) {
-                throw new Error('Fecha de inicio inválida');
-            }
-            if (!inputs.duration || inputs.duration <= 0) {
-                throw new Error('Plazo de ejecución debe ser mayor a 0');
-            }
-            const endDate = new Date(inputs.startDate);
-            endDate.setDate(inputs.startDate.getDate() + inputs.duration);
-            const fechaFinalEl = document.getElementById('fechaFinal');
-            if (fechaFinalEl) {
-                fechaFinalEl.textContent = endDate.toISOString().split('T')[0];
-            } else {
-                console.warn('Elemento #fechaFinal no encontrado');
-            }
+        const results = this.computeFinancials(inputs);
+        this.state.financialResults = results;
 
-            if (!this.state.financialResults) {
-                this.calculateFinancials();
-                if (!this.state.financialResults) {
-                    throw new Error('No se pudieron calcular los datos financieros necesarios para el cronograma');
-                }
-            }
+        const displayValue = (value) => this.formatCurrency(value);
 
-            this.updateExecutionDisplay(inputs.startDate, endDate, inputs);
-        } catch (error) {
-            console.error('Error en cálculo de ejecución:', error);
-            this.showNotification('Error en cálculo de ejecución: ' + error.message, 'error');
-        }
+        document.getElementById('valorSubtotalDisplay').textContent = displayValue(results.subtotalSinAIU);
+        document.getElementById('valorSubtotalSinAIU').textContent = displayValue(results.subtotalSinAIU);
+        document.getElementById('valorAdministracion').textContent = displayValue(results.valorAdministracion);
+        document.getElementById('valorImprevistos').textContent = displayValue(results.valorImprevistos);
+        document.getElementById('valorUtilidad').textContent = displayValue(results.valorUtilidad);
+        document.getElementById('totalAIU').textContent = displayValue(results.totalAIU);
+        document.getElementById('valorSubtotalConAIU').textContent = displayValue(results.subtotalConAIU);
+        document.getElementById('valorIVA').textContent = displayValue(results.valorIVA);
+        document.getElementById('valorTotal').textContent = displayValue(results.total);
+        document.getElementById('valorAnticipo').textContent = displayValue(results.valorAnticipo);
+        document.getElementById('porcentajeAvance').textContent = `${results.porcentajeAvance}%`;
+        document.getElementById('valorAvance').textContent = displayValue(results.valorAvance);
+        document.getElementById('valorRetenido').textContent = displayValue(results.valorRetenido);
     }
 
     getExecutionInputs() {
-        const periodicityValue = document.getElementById('periodicidadCortes')?.value === 'semanal' ? 7 : 15;
+        const startDate = new Date(document.getElementById('fechaInicio')?.value);
+        const tiempoPlaneacion = parseInt(document.getElementById('tiempoPlaneacion')?.value) || 0;
+        const tiempoCronogramaFinal = parseInt(document.getElementById('tiempoCronogramaFinal')?.value) || 0;
+        const tiempoFabricacionDespacho = parseInt(document.getElementById('tiempoFabricacionDespacho')?.value) || 0;
+        const tiempoInstalacion = parseInt(document.getElementById('tiempoInstalacion')?.value) || 0;
+        const periodicidadCortes = document.getElementById('periodicidadCortes')?.value || 'mensual';
+        const cantidad = parseInt(document.getElementById('cantidad')?.value) || 0;
+        const unidadMedida = document.getElementById('unidadMedida')?.value || 'M2';
+        const fechaLlegadaMaterial = document.getElementById('fechaLlegadaMaterial')?.value;
+
         return {
-            startDate: new Date(document.getElementById('fechaInicio')?.value || 'Invalid Date'),
-            duration: parseInt(document.getElementById('plazoEjecucion')?.value) || 0,
-            cutFrequency: periodicityValue,
-            cantidad: parseInt(document.getElementById('cantidad')?.value) || 0,
-            unidadMedida: document.getElementById('unidadMedida')?.value || 'M2'
+            startDate,
+            tiempoPlaneacion,
+            tiempoCronogramaFinal,
+            tiempoFabricacionDespacho,
+            tiempoInstalacion,
+            periodicidadCortes,
+            cantidad,
+            unidadMedida,
+            fechaLlegadaMaterial
         };
     }
 
-    updateExecutionDisplay(start, end, { duration, cutFrequency, cantidad, unidadMedida }) {
-        const { total } = this.state.financialResults;
-        const numCortes = Math.max(1, Math.floor(duration / cutFrequency));
+    calculateExecutionDates(preview = false) {
+        const inputs = this.getExecutionInputs();
+        if (isNaN(inputs.startDate.getTime())) {
+            document.getElementById('fechaFinal').textContent = 'Fecha inválida';
+            document.getElementById('cronogramaTable').style.display = 'none';
+            document.getElementById('cronograma').style.display = 'block';
+            this.state.cronogramaData = [];
+            return;
+        }
+
+        document.getElementById('fechaInicioRef').textContent = this.formatDate(inputs.startDate);
+
+        const fechasEtapas = this.calculateStageDates(inputs);
+        const endDate = fechasEtapas.fechaFinInstalacion;
+
+        document.getElementById('fechaFinal').textContent = this.formatDate(endDate);
+
+        this.updateExecutionDisplay(fechasEtapas, inputs);
+
+        if (!preview) this.updateCronogramaChart();
+    }
+
+    calculateStageDates({ startDate, tiempoPlaneacion, tiempoCronogramaFinal, tiempoFabricacionDespacho, tiempoInstalacion, periodicidadCortes }) {
+        const fechas = {};
+        let currentDate = new Date(startDate);
+
+        fechas.fechaFinPlaneacion = new Date(currentDate);
+        fechas.fechaFinPlaneacion.setDate(currentDate.getDate() + tiempoPlaneacion * 7);
+
+        currentDate = new Date(fechas.fechaFinPlaneacion);
+        fechas.fechaFinCronogramaFinal = new Date(currentDate);
+        fechas.fechaFinCronogramaFinal.setDate(currentDate.getDate() + tiempoCronogramaFinal * 7);
+
+        currentDate = new Date(fechas.fechaFinCronogramaFinal);
+        fechas.fechaFinFabricacionDespacho = new Date(currentDate);
+        fechas.fechaFinFabricacionDespacho.setDate(currentDate.getDate() + tiempoFabricacionDespacho * 7);
+
+        currentDate = new Date(fechas.fechaFinFabricacionDespacho);
+        fechas.fechaInicioInstalacion = new Date(currentDate);
+        fechas.fechaFinInstalacion = new Date(currentDate);
+        fechas.fechaFinInstalacion.setMonth(currentDate.getMonth() + tiempoInstalacion);
+
+        const totalDuration = Math.round((fechas.fechaFinInstalacion - startDate) / (1000 * 60 * 60 * 24));
+
+        const cutFrequencyDays = {
+            semanal: 7,
+            quincenal: 15,
+            mensual: 30
+        }[periodicidadCortes] || 30;
+
+        const instalacionDurationDays = Math.round((fechas.fechaFinInstalacion - fechas.fechaInicioInstalacion) / (1000 * 60 * 60 * 24));
+        const numCortes = Math.max(1, Math.floor(instalacionDurationDays / cutFrequencyDays));
+
+        return {
+            fechaFinPlaneacion: fechas.fechaFinPlaneacion,
+            fechaFinCronogramaFinal: fechas.fechaFinCronogramaFinal,
+            fechaFinFabricacionDespacho: fechas.fechaFinFabricacionDespacho,
+            fechaInicioInstalacion: fechas.fechaInicioInstalacion,
+            fechaFinInstalacion: fechas.fechaFinInstalacion,
+            totalDuration,
+            numCortes,
+            cutFrequencyDays
+        };
+    }
+
+    updateExecutionDisplay(fechasEtapas, { startDate, cantidad, unidadMedida, periodicidadCortes, fechaLlegadaMaterial }) {
+        const { total } = this.state.financialResults || this.computeFinancials(this.getFinancialInputs());
+        const { fechaFinPlaneacion, fechaFinCronogramaFinal, fechaFinFabricacionDespacho, fechaInicioInstalacion, fechaFinInstalacion, numCortes, cutFrequencyDays } = fechasEtapas;
+
         const cantidadPorCorte = cantidad / numCortes;
         const valorPorCorte = total / numCortes;
 
-        const tbody = document.querySelector('#cronogramaTable tbody');
-        if (!tbody) {
-            console.warn('Tabla #cronogramaTable no encontrada');
-            return;
+        // Lista de etapas con sus fechas para ordenar cronológicamente
+        const etapas = [
+            { nombre: 'Inicio (Anticipo)', fecha: startDate, cantidad: '-', valor: 0 },
+            { nombre: 'Fin Planeación', fecha: fechaFinPlaneacion, cantidad: '-', valor: 0 },
+            { nombre: 'Entrega Cronograma Final', fecha: fechaFinCronogramaFinal, cantidad: '-', valor: 0 },
+            { nombre: 'Fin Fabricación/Despacho', fecha: fechaFinFabricacionDespacho, cantidad: '-', valor: 0 },
+        ];
+
+        // Agregar la llegada del material si existe
+        if (fechaLlegadaMaterial) {
+            const fechaLlegada = new Date(fechaLlegadaMaterial);
+            if (!isNaN(fechaLlegada.getTime())) {
+                etapas.push({ nombre: 'Llegada Material', fecha: fechaLlegada, cantidad: '-', valor: 0 });
+            }
         }
+
+        etapas.push({ nombre: 'Inicio Instalación', fecha: fechaInicioInstalacion, cantidad: '-', valor: 0 });
+
+        // Agregar los cortes
+        for (let i = 1; i <= numCortes; i++) {
+            const cutDate = new Date(fechaInicioInstalacion);
+            cutDate.setDate(fechaInicioInstalacion.getDate() + i * cutFrequencyDays);
+            if (cutDate <= fechaFinInstalacion) {
+                etapas.push({
+                    nombre: `Corte ${i}`,
+                    fecha: cutDate,
+                    cantidad: `${this.formatNumber(cantidadPorCorte)} ${unidadMedida}`,
+                    valor: valorPorCorte
+                });
+            }
+        }
+
+        etapas.push({ nombre: 'Fin Instalación', fecha: fechaFinInstalacion, cantidad: '-', valor: 0 });
+
+        // Ordenar las etapas por fecha
+        etapas.sort((a, b) => a.fecha - b.fecha);
+
+        // Calcular totales
+        let totalCantidad = 0, totalValor = 0;
+        etapas.forEach(etapa => {
+            if (etapa.nombre.startsWith('Corte')) {
+                totalCantidad += cantidadPorCorte;
+                totalValor += valorPorCorte;
+            }
+        });
+
+        // Actualizar la tabla
+        const tbody = document.querySelector('#cronogramaTable tbody');
         tbody.innerHTML = '';
         document.getElementById('cronogramaTable').style.display = 'table';
         document.getElementById('cronograma').style.display = 'none';
 
-        let totalCantidad = 0, totalValor = 0;
-        tbody.appendChild(this.createRow('Inicio', this.formatDate(start), '-', '-'));
-        for (let i = 1; i <= numCortes; i++) {
-            const cutDate = new Date(start);
-            cutDate.setDate(start.getDate() + i * cutFrequency);
-            if (cutDate <= end) {
-                tbody.appendChild(this.createRow(`Corte ${i}`, this.formatDate(cutDate), `${this.formatNumber(cantidadPorCorte)} ${unidadMedida}`, this.formatCurrency(valorPorCorte)));
-                totalCantidad += cantidadPorCorte;
-                totalValor += valorPorCorte;
-            }
-        }
-        tbody.appendChild(this.createRow('Final', this.formatDate(end), '-', '-'));
+        this.state.cronogramaData = [];
+
+        etapas.forEach(etapa => {
+            const rowData = [etapa.nombre, this.formatDate(etapa.fecha), etapa.cantidad, etapa.valor];
+            this.state.cronogramaData.push(rowData);
+            tbody.appendChild(this.createRow(
+                etapa.nombre,
+                this.formatDate(etapa.fecha),
+                etapa.cantidad,
+                etapa.valor === '-' ? '-' : this.formatCurrency(etapa.valor)
+            ));
+        });
+
+        const totalRowData = ['Total', '-', `${this.formatNumber(totalCantidad)} ${unidadMedida}`, totalValor];
+        this.state.cronogramaData.push(totalRowData);
         const totalRow = this.createRow('Total', '-', `${this.formatNumber(totalCantidad)} ${unidadMedida}`, this.formatCurrency(totalValor));
         totalRow.classList.add('total-row');
         tbody.appendChild(totalRow);
     }
 
-    createRow(stage, date, qty, value) {
+    createRow(...cells) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${stage}</td><td>${date}</td><td>${qty}</td><td>${value}</td>`;
+        cells.forEach(cell => {
+            const td = document.createElement('td');
+            td.textContent = cell;
+            row.appendChild(td);
+        });
         return row;
     }
 
-    addContractToHistory() {
-        try {
-            this.calculateFinancials();
-            this.calculateExecutionDates();
-            const contract = this.getContractData();
-            if (!contract.nombreProyecto || !contract.contratante) {
-                throw new Error('El nombre del proyecto y del contratante son obligatorios');
+    updateCronogramaChart() {
+        if (!this.state.showCronogramaChart) return;
+        const ctx = document.getElementById('cronogramaChart').getContext('2d');
+        const labels = this.state.cronogramaData.map(row => row[0]);
+        const values = this.state.cronogramaData.map(row => row[3]);
+
+        if (this.chart) this.chart.destroy();
+
+        this.chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Valor por Etapa',
+                    data: values,
+                    backgroundColor: '#4B5EAA'
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: `Valor (${this.state.currency})`
+                        },
+                        ticks: {
+                            callback: (value) => this.formatNumber(value)
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.raw;
+                                return `Valor: ${this.formatCurrency(value)}`;
+                            }
+                        }
+                    }
+                }
             }
-            if (!contract.fechaInicio || contract.plazoEjecucion <= 0) {
-                throw new Error('La fecha de inicio y el plazo de ejecución son obligatorios');
-            }
-            if (!this.state.financialResults || this.state.financialResults.total <= 0) {
-                throw new Error('Calcule primero los aspectos financieros');
-            }
-            this.state.contractsHistory.unshift(contract);
-            localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
-            this.loadHistoryTable();
-            this.loadCalendarTable();
-            this.showNotification('Contrato agregado al historial', 'success');
-        } catch (error) {
-            console.error('Error al agregar contrato:', error);
-            this.showNotification(error.message || 'Error al agregar contrato', 'error');
-        }
+        });
     }
 
-    clearHistory() {
-        if (confirm('¿Seguro que desea borrar el historial?')) {
-            this.state.contractsHistory = [];
-            localStorage.removeItem('historicoContratos');
-            this.loadHistoryTable();
-            this.loadCalendarTable();
-            this.showNotification('Historial borrado', 'success');
+    toggleCronogramaChart() {
+        this.state.showCronogramaChart = !this.state.showCronogramaChart;
+        const canvas = document.getElementById('cronogramaChart');
+        canvas.style.display = this.state.showCronogramaChart ? 'block' : 'none';
+        if (this.state.showCronogramaChart) this.updateCronogramaChart();
+    }
+
+    exportCronogramaImage() {
+        const canvas = document.createElement('canvas');
+        const table = document.getElementById('cronogramaTable');
+        html2canvas(table).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'cronograma.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(err => {
+            this.showNotification('Error al exportar la imagen del cronograma', 'error');
+            console.error(err);
+        });
+    }
+
+    getContractData() {
+        const totalInBaseCurrency = this.state.financialResults?.total || 0;
+        const valorTotal = (this.state.convertCurrency && this.state.currency !== 'COP')
+            ? totalInBaseCurrency * this.exchangeRates[this.state.currency]
+            : totalInBaseCurrency;
+
+        const inputs = this.getExecutionInputs();
+        const fechasEtapas = this.calculateStageDates(inputs);
+
+        return {
+            nombreProyecto: document.getElementById('nombreProyecto')?.value?.trim() || '',
+            numeroContrato: document.getElementById('numeroContrato')?.value?.trim() || '',
+            contratante: document.getElementById('nombreContratante')?.value?.trim() || '',
+            descripcion: document.getElementById('descripcion')?.value?.trim() || '',
+            ubicacion: document.getElementById('ubicacion')?.value?.trim() || '',
+            tipoContrato: document.getElementById('tipoContrato')?.value || 'Obra',
+            estadoContrato: document.getElementById('estadoContrato')?.value || 'Pendiente',
+            cantidad: parseInt(document.getElementById('cantidad')?.value) || 0,
+            unidadMedida: document.getElementById('unidadMedida')?.value || 'M2',
+            material: document.getElementById('material')?.value?.trim() || '',
+            marca: document.getElementById('marca')?.value?.trim() || '',
+            importacion: document.getElementById('importacion')?.value || 'No',
+            disponibleInventario: document.getElementById('disponibleInventario')?.value || 'No',
+            tiemposImportacion: parseInt(document.getElementById('tiemposImportacion')?.value) || 0,
+            fechaLlegadaMaterial: document.getElementById('fechaLlegadaMaterial')?.value || '',
+            nivelComplejidad: document.getElementById('nivelComplejidad')?.value || 'Básico',
+            complejidadComentarios: document.getElementById('complejidadComentarios')?.value?.trim() || '',
+            valorTotal,
+            plazoEjecucion: fechasEtapas.totalDuration,
+            fechaInicio: document.getElementById('fechaInicio')?.value || '',
+            fechaFinal: this.formatDate(fechasEtapas.fechaFinInstalacion),
+            tiempoPlaneacion: parseInt(document.getElementById('tiempoPlaneacion')?.value) || 0,
+            tiempoCronogramaFinal: parseInt(document.getElementById('tiempoCronogramaFinal')?.value) || 0,
+            tiempoFabricacionDespacho: parseInt(document.getElementById('tiempoFabricacionDespacho')?.value) || 0,
+            tiempoInstalacion: parseInt(document.getElementById('tiempoInstalacion')?.value) || 0,
+            direccionRadicacion: document.getElementById('direccionRadicacion')?.value?.trim() || '',
+            nombreRadica: document.getElementById('nombreRadica')?.value?.trim() || '',
+            fechaCierreContable: document.getElementById('fechaCierreContable')?.value || '',
+            documentosAdjuntos: document.getElementById('documentosAdjuntos')?.value?.trim() || ''
+        };
+    }
+
+    handleAction(action) {
+        if (action === 'addContract') this.addContract();
+        if (action === 'downloadPDF') this.downloadPDF();
+        if (action === 'saveJSON') this.saveJSON();
+        if (action === 'loadJSON') document.getElementById('jsonFile').click();
+        if (action === 'downloadHistoryPDF') this.downloadHistoryPDF();
+        if (action === 'downloadHistoryExcel') this.downloadHistoryExcel();
+        if (action === 'clearHistory') this.clearHistory();
+        if (action === 'downloadCalendarPDF') this.downloadCalendarPDF();
+        if (action === 'downloadCalendarExcel') this.downloadCalendarExcel();
+    }
+
+    addContract() {
+        const contractData = this.getContractData();
+        const requiredFields = ['nombreProyecto', 'contratante', 'cantidad', 'fechaInicio', 'tiempoPlaneacion', 'tiempoCronogramaFinal', 'tiempoFabricacionDespacho', 'tiempoInstalacion'];
+        const missingFields = requiredFields.filter(field => !contractData[field] || (typeof contractData[field] === 'string' && contractData[field].trim() === ''));
+
+        if (missingFields.length) {
+            this.showNotification(`Faltan campos obligatorios: ${missingFields.join(', ')}`, 'error');
+            return;
         }
+
+        this.state.contractsHistory.push(contractData);
+        localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
+        this.loadHistoryTable();
+        this.loadCalendarTable();
+        this.updateContratanteList();
+        this.updateProyectoFilter();
+        this.showNotification('Contrato agregado al historial', 'success');
     }
 
     loadHistoryTable() {
         const tbody = document.querySelector('#tablaHistorico tbody');
-        tbody.innerHTML = this.state.contractsHistory.map(c => `
-            <tr>
+        const filterEstado = document.getElementById('filterEstado')?.value;
+        const filterFechaInicio = document.getElementById('filterFechaInicio')?.value;
+        const filterFechaFin = document.getElementById('filterFechaFin')?.value;
+
+        let filteredHistory = this.state.contractsHistory.filter(c =>
+            (!filterEstado || c.estadoContrato === filterEstado) &&
+            (!filterFechaInicio || new Date(c.fechaInicio) >= new Date(filterFechaInicio)) &&
+            (!filterFechaFin || new Date(c.fechaFinal) <= new Date(filterFechaFin)) &&
+            (c.nombreProyecto.toLowerCase().includes(this.state.searchQuery) ||
+             c.contratante.toLowerCase().includes(this.state.searchQuery) ||
+             c.material.toLowerCase().includes(this.state.searchQuery) ||
+             c.marca.toLowerCase().includes(this.state.searchQuery))
+        );
+
+        if (this.state.historySort.column) {
+            filteredHistory.sort((a, b) => {
+                const valA = a[this.state.historySort.column];
+                const valB = b[this.state.historySort.column];
+                return this.state.historySort.ascending ? valA > valB ? 1 : -1 : valA < valB ? 1 : -1;
+            });
+        }
+
+        tbody.innerHTML = filteredHistory.map((c, index) => `
+            <tr class="${c.estadoContrato === 'En Ejecución' ? 'active-contract' : ''}">
                 <td>${c.nombreProyecto}</td>
                 <td>${c.contratante}</td>
                 <td>${this.formatNumber(c.cantidad)} ${c.unidadMedida}</td>
+                <td>${c.material}</td>
+                <td>${c.marca}</td>
+                <td>${c.nivelComplejidad}</td>
                 <td>${this.formatCurrency(c.valorTotal)}</td>
                 <td>${c.plazoEjecucion} días</td>
                 <td>${this.formatDate(new Date(c.fechaInicio))}</td>
                 <td>${this.formatDate(new Date(c.fechaFinal))}</td>
+                <td><button class="edit-btn" data-index="${index}"><i class="fas fa-edit"></i> Editar</button></td>
             </tr>
-        `).join('') || '<tr><td colspan="7">No hay contratos en el historial</td></tr>';
+        `).join('') || '<tr><td colspan="11">Sin contratos</td></tr>';
+
+        tbody.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.editContract(parseInt(btn.dataset.index)));
+        });
+
+        document.getElementById('totalContratos').textContent = filteredHistory.length;
+        document.getElementById('valorTotalAcumulado').textContent = this.formatCurrency(filteredHistory.reduce((sum, c) => sum + c.valorTotal, 0));
+    }
+
+    sortHistoryTable(e) {
+        const th = e.target.closest('th');
+        if (!th) return;
+        const column = th.cellIndex;
+        const columnMap = ['nombreProyecto', 'contratante', 'cantidad', 'material', 'marca', 'nivelComplejidad', 'valorTotal', 'plazoEjecucion', 'fechaInicio', 'fechaFinal'];
+        const newColumn = columnMap[column];
+        if (this.state.historySort.column === newColumn) {
+            this.state.historySort.ascending = !this.state.historySort.ascending;
+        } else {
+            this.state.historySort.column = newColumn;
+            this.state.historySort.ascending = true;
+        }
+        this.loadHistoryTable();
+    }
+
+    editContract(index) {
+        const contract = this.state.contractsHistory[index];
+        Object.entries(contract).forEach(([key, value]) => {
+            const el = document.getElementById(key);
+            if (el) {
+                if (key === 'fechaFinal') el.textContent = value;
+                else if (el.type === 'checkbox') el.checked = value;
+                else el.value = value;
+            }
+        });
+        this.state.contractsHistory.splice(index, 1);
+        localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
+        this.loadHistoryTable();
+        this.loadCalendarTable();
+        this.updateContratanteList();
+        this.updateProyectoFilter();
+        this.showNotification('Contrato cargado para edición', 'success');
+        this.openTab('informacion');
+    }
+
+    compareContracts() {
+        this.showNotification('Funcionalidad de comparación en desarrollo', 'info');
+    }
+
+    updateContratanteList() {
+        const datalist = document.getElementById('contratanteList');
+        datalist.innerHTML = '';
+        const uniqueContratantes = [...new Set(this.state.contractsHistory.map(c => c.contratante))];
+        uniqueContratantes.forEach(contratante => {
+            const option = document.createElement('option');
+            option.value = contratante;
+            datalist.appendChild(option);
+        });
+    }
+
+    updateProyectoFilter() {
+        const select = document.getElementById('filterProyecto');
+        select.innerHTML = '<option value="">Todos</option>';
+        const uniqueProyectos = [...new Set(this.state.contractsHistory.map(c => c.nombreProyecto))];
+        uniqueProyectos.forEach(proyecto => {
+            const option = document.createElement('option');
+            option.value = proyecto;
+            option.textContent = proyecto;
+            select.appendChild(option);
+        });
     }
 
     calculateCutsForContract(contract) {
-        const start = new Date(contract.fechaInicio);
-        const end = new Date(contract.fechaFinal);
-        const durationDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-        const cutFrequency = document.getElementById('periodicidadCortes')?.value === 'semanal' ? 7 : 15;
-        const numCortes = Math.max(1, Math.floor(durationDays / cutFrequency));
-        const cantidadPorCorte = contract.cantidad / numCortes;
+        const startDate = new Date(contract.fechaInicio);
+        const endDate = new Date(contract.fechaFinal);
+        const durationDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const cutFrequencyDays = 30;
+        const numCortes = Math.max(1, Math.floor(durationDays / cutFrequencyDays));
         const valorPorCorte = contract.valorTotal / numCortes;
 
         const cuts = [];
-        for (let i = 1; i <= numCortes; i++) {
-            const cutDate = new Date(start);
-            cutDate.setDate(start.getDate() + i * cutFrequency);
-            if (cutDate <= end) {
-                cuts.push({ cutNumber: i, date: cutDate, cantidad: cantidadPorCorte, valor: valorPorCorte, unidadMedida: contract.unidadMedida });
+        for (let i = 0; i < numCortes; i++) {
+            const cutDate = new Date(startDate);
+            cutDate.setDate(startDate.getDate() + i * cutFrequencyDays);
+            if (cutDate <= endDate) {
+                cuts.push({ date: cutDate, valor: valorPorCorte });
             }
         }
         return cuts;
@@ -419,14 +739,16 @@ class ContractApp {
     loadCalendarTable() {
         const tbody = document.querySelector('#calendarioTable tbody');
         const tfoot = document.querySelector('#calendarioTable tfoot');
+        const filterProyecto = document.getElementById('filterProyecto')?.value;
         const monthlyTotals = Array(12).fill(0);
         let yearlyTotal = 0;
 
-        const cutsByProject = this.state.contractsHistory.map(contract => this.calculateCutsForContract(contract));
+        let filteredHistory = filterProyecto ? this.state.contractsHistory.filter(c => c.nombreProyecto === filterProyecto) : this.state.contractsHistory;
+        const cutsByProject = filteredHistory.map(contract => this.calculateCutsForContract(contract));
         const allValues = cutsByProject.flatMap(cuts => cuts.map(cut => cut.valor)).filter(v => v > 0);
         const maxValue = Math.max(...allValues, 0) || 1000000;
 
-        tbody.innerHTML = this.state.contractsHistory.map(contract => {
+        tbody.innerHTML = filteredHistory.map(contract => {
             const cuts = this.calculateCutsForContract(contract);
             const months = Array(12).fill(0);
             let projectTotal = 0;
@@ -443,31 +765,51 @@ class ContractApp {
                 <tr>
                     <td>${contract.nombreProyecto}</td>
                     ${months.map(m => {
-                        const barWidth = m > 0 ? Math.min((m / maxValue) * 40, 40) : 0;
-                        const barClass = m > maxValue * 0.75 ? 'high' : m < maxValue * 0.25 ? 'low' : 'mid';
-                        return `<td${m > 0 ? ' class="has-cuts"' : ''} title="${m > 0 ? this.formatCurrency(m) : ''}">
-                            ${m > 0 && this.state.showBars ? `<span class="bar ${barClass}" style="width: ${barWidth}px;"></span>` : m > 0 ? this.formatCurrency(m) : '-'}
+                        const intensity = m > 0 ? Math.min((m / maxValue) * 100, 100) : 0;
+                        const className = m > 0 ? `intensity-${Math.floor(intensity / 20)}` : '';
+                        return `<td class="${className}" title="${this.formatCurrency(m)}">
+                            ${m > 0 && this.state.calendarView === 'bars' ? `<div class="bar" style="width: ${intensity}%;"></div>` : m > 0 ? this.formatCurrency(m) : '-'}
                         </td>`;
                     }).join('')}
-                    <td class="project-total">${this.formatCurrency(projectTotal)}</td>
+                    <td>${this.formatCurrency(projectTotal)}</td>
                 </tr>`;
-        }).join('') || '<tr><td colspan="14">No hay contratos en el historial</td></tr>';
+        }).join('') || '<tr><td colspan="14">Sin contratos</td></tr>';
 
         tfoot.innerHTML = `
             <tr class="total-row">
                 <td>Total</td>
                 ${monthlyTotals.map(total => {
-                    const barWidth = total > 0 ? Math.min((total / maxValue) * 40, 40) : 0;
-                    const barClass = total > maxValue * 0.75 ? 'high' : total < maxValue * 0.25 ? 'low' : 'mid';
-                    return `<td title="${total > 0 ? this.formatCurrency(total) : ''}">
-                        ${total > 0 && this.state.showBars ? `<span class="bar ${barClass}" style="width: ${barWidth}px;"></span>` : total > 0 ? this.formatCurrency(total) : '-'}
+                    const intensity = total > 0 ? Math.min((total / maxValue) * 100, 100) : 0;
+                    const className = total > 0 ? `intensity-${Math.floor(intensity / 20)}` : '';
+                    return `<td class="${className}" title="${this.formatCurrency(total)}">
+                        ${total > 0 && this.state.calendarView === 'bars' ? `<div class="bar" style="width: ${intensity}%;"></div>` : total > 0 ? this.formatCurrency(total) : '-'}
                     </td>`;
                 }).join('')}
-                <td class="yearly-total">${this.formatCurrency(yearlyTotal)}</td>
+                <td>${this.formatCurrency(yearlyTotal)}</td>
             </tr>
         `;
-
         document.getElementById('calendarYear').textContent = this.state.calendarYear;
+    }
+
+    toggleCalendarView() {
+        this.state.calendarView = this.state.calendarView === 'bars' ? 'numbers' : 'bars';
+        document.getElementById('changeView').querySelector('i').classList.toggle('fa-eye', this.state.calendarView === 'bars');
+        document.getElementById('changeView').querySelector('i').classList.toggle('fa-list', this.state.calendarView === 'numbers');
+        this.loadCalendarTable();
+    }
+
+    exportCalendarImage() {
+        const canvas = document.createElement('canvas');
+        const table = document.getElementById('calendarioTable');
+        html2canvas(table).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `calendario_${this.state.calendarYear}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }).catch(err => {
+            this.showNotification('Error al exportar la imagen del calendario', 'error');
+            console.error(err);
+        });
     }
 
     changeCalendarYear(delta) {
@@ -475,360 +817,130 @@ class ContractApp {
         this.loadCalendarTable();
     }
 
-    generateHistoryPDF() {
+    toggleBars() {
+        this.state.showBars = !this.state.showBars;
+        document.getElementById('toggleBars').querySelector('i').classList.toggle('fa-chart-bar', this.state.showBars);
+        document.getElementById('toggleBars').querySelector('i').classList.toggle('fa-list', !this.state.showBars);
+        this.loadCalendarTable();
+    }
+
+    showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+
+    checkNotifications() {
+        const today = new Date();
+        this.state.contractsHistory.forEach(contract => {
+            const endDate = new Date(contract.fechaFinal);
+            const daysDiff = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+            if (daysDiff <= 7 && daysDiff > 0 && !this.state.notifications.includes(contract.nombreProyecto)) {
+                this.showNotification(`El proyecto ${contract.nombreProyecto} está próximo a finalizar (${daysDiff} días restantes)`, 'warning');
+                this.state.notifications.push(contract.nombreProyecto);
+            }
+        });
+    }
+
+    downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
         try {
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                throw new Error('jsPDF no está cargado');
-            }
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            if (typeof doc.autoTable !== 'function') {
-                throw new Error('AutoTable no está disponible');
-            }
-
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const margin = 15;
-
-            doc.setFillColor(2, 119, 189);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            doc.setTextColor(255);
-            doc.setFontSize(18);
-            doc.setFont('Helvetica', 'bold');
-            doc.text('Histórico de Contratos', pageWidth / 2, 25, { align: 'center' });
-
-            doc.setFontSize(10);
-            doc.setTextColor(38, 50, 56);
-            doc.autoTable({
-                startY: 45,
-                head: [['Proyecto', 'Contratante', 'Cantidad', 'Valor Total', 'Plazo', 'Inicio', 'Fin']],
-                body: this.state.contractsHistory.map(c => [
-                    c.nombreProyecto,
-                    c.contratante,
-                    `${this.formatNumber(c.cantidad)} ${c.unidadMedida}`,
-                    this.formatCurrency(c.valorTotal),
-                    `${c.plazoEjecucion} días`,
-                    this.formatDate(new Date(c.fechaInicio)),
-                    this.formatDate(new Date(c.fechaFinal))
-                ]),
-                styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 249, 252] },
-                margin: { top: 45, left: margin, right: margin }
-            });
-
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-
-            doc.save('historico_contratos.pdf');
+            doc.setFontSize(16);
+            doc.text('Revisión de Contratos', 20, 20);
+            doc.setFontSize(12);
+            doc.text(`Proyecto: ${document.getElementById('nombreProyecto')?.value || 'N/A'}`, 20, 30);
+            doc.text(`Contratante: ${document.getElementById('nombreContratante')?.value || 'N/A'}`, 20, 40);
+            doc.text(`Valor Total: ${document.getElementById('valorTotal')?.textContent || 'N/A'}`, 20, 50);
+            doc.autoTable({ html: '#cronogramaTable', startY: 60 });
+            doc.save('contrato.pdf');
+            this.showNotification('PDF descargado correctamente', 'success');
         } catch (error) {
-            console.error('Error generando PDF de historial:', error);
-            this.showNotification('Error al generar el PDF del historial: ' + error.message, 'error');
+            this.showNotification('Error al generar el PDF', 'error');
+            console.error(error);
         }
     }
 
-    generateHistoryExcel() {
-        const data = this.state.contractsHistory.map(c => ({
-            Proyecto: c.nombreProyecto,
-            Contratante: c.contratante,
-            Cantidad: `${this.formatNumber(c.cantidad)} ${c.unidadMedida}`,
-            'Valor Total': this.formatCurrency(c.valorTotal),
-            Plazo: `${c.plazoEjecucion} días`,
-            Inicio: this.formatDate(new Date(c.fechaInicio)),
-            Fin: this.formatDate(new Date(c.fechaFinal))
-        }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
-        XLSX.writeFile(wb, 'historico_contratos.xlsx');
-    }
-
-    generateCalendarExcel() {
-        const data = this.state.contractsHistory.map(c => {
-            const cuts = this.calculateCutsForContract(c);
-            const months = Array(12).fill(0);
-            let projectTotal = 0;
-            cuts.forEach(cut => {
-                if (cut.date.getFullYear() === this.state.calendarYear) {
-                    const month = cut.date.getMonth();
-                    months[month] += cut.valor;
-                    projectTotal += cut.valor;
-                }
-            });
-            return { Proyecto: c.nombreProyecto, ...Object.fromEntries(months.map((m, i) => [new Date(0, i).toLocaleString('es', { month: 'short' }), this.formatCurrency(m)])), Total: this.formatCurrency(projectTotal) };
-        });
-        const monthlyTotals = Array(12).fill(0);
-        let yearlyTotal = 0;
-        this.state.contractsHistory.forEach(c => {
-            const cuts = this.calculateCutsForContract(c);
-            cuts.forEach(cut => {
-                if (cut.date.getFullYear() === this.state.calendarYear) {
-                    monthlyTotals[cut.date.getMonth()] += cut.valor;
-                    yearlyTotal += cut.valor;
-                }
-            });
-        });
-        data.push({
-            Proyecto: 'Total por Mes',
-            ...Object.fromEntries(monthlyTotals.map((total, i) => [new Date(0, i).toLocaleString('es', { month: 'short' }), this.formatCurrency(total)])),
-            Total: this.formatCurrency(yearlyTotal)
-        });
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Calendario');
-        XLSX.writeFile(wb, `calendario_${this.state.calendarYear}.xlsx`);
-    }
-
-    generateCalendarPDF() {
+    downloadHistoryPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
         try {
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                throw new Error('jsPDF no está cargado');
-            }
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'landscape' });
-            if (typeof doc.autoTable !== 'function') {
-                throw new Error('AutoTable no está disponible');
-            }
+            doc.setFontSize(16);
+            doc.text('Histórico de Contratos', 20, 20);
+            doc.autoTable({ html: '#tablaHistorico', startY: 30 });
+            doc.save('historico.pdf');
+            this.showNotification('PDF descargado correctamente', 'success');
+        } catch (error) {
+            this.showNotification('Error al generar el PDF', 'error');
+            console.error(error);
+        }
+    }
 
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const margin = 15;
+    downloadHistoryExcel() {
+        try {
+            const ws = XLSX.utils.table_to_sheet(document.getElementById('tablaHistorico'));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+            XLSX.writeFile(wb, 'historico.xlsx');
+            this.showNotification('Excel descargado correctamente', 'success');
+        } catch (error) {
+            this.showNotification('Error al generar el Excel', 'error');
+            console.error(error);
+        }
+    }
 
-            doc.setFillColor(2, 119, 189);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            doc.setTextColor(255);
-            doc.setFontSize(18);
-            doc.setFont('Helvetica', 'bold');
-            doc.text(`Calendario Anual ${this.state.calendarYear}`, pageWidth / 2, 25, { align: 'center' });
+    clearHistory() {
+        if (confirm('¿Está seguro de que desea borrar el historial?')) {
+            this.state.contractsHistory = [];
+            localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
+            this.loadHistoryTable();
+            this.loadCalendarTable();
+            this.updateContratanteList();
+            this.updateProyectoFilter();
+            this.showNotification('Historial borrado', 'success');
+        }
+    }
 
-            const monthlyTotals = Array(12).fill(0);
-            let yearlyTotal = 0;
-            const body = this.state.contractsHistory.map(c => {
-                const cuts = this.calculateCutsForContract(c);
-                const months = Array(12).fill(0);
-                let projectTotal = 0;
-                cuts.forEach(cut => {
-                    if (cut.date.getFullYear() === this.state.calendarYear) {
-                        const month = cut.date.getMonth();
-                        months[month] += cut.valor;
-                        projectTotal += cut.valor;
-                        monthlyTotals[month] += cut.valor;
-                        yearlyTotal += cut.valor;
-                    }
-                });
-                return [c.nombreProyecto, ...months.map(m => this.formatCurrency(m)), this.formatCurrency(projectTotal)];
-            });
-            body.push(['Total', ...monthlyTotals.map(total => this.formatCurrency(total)), this.formatCurrency(yearlyTotal)]);
-
-            doc.setFontSize(10);
-            doc.setTextColor(38, 50, 56);
-            doc.autoTable({
-                startY: 45,
-                head: [['Proyecto', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic', 'Total']],
-                body,
-                styles: { font: 'Helvetica', fontSize: 8, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 249, 252] },
-                columnStyles: { 0: { cellWidth: 30 } },
-                margin: { top: 45, left: margin, right: margin }
-            });
-
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-
+    downloadCalendarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        try {
+            doc.setFontSize(16);
+            doc.text(`Calendario Anual ${this.state.calendarYear}`, 20, 20);
+            doc.autoTable({ html: '#calendarioTable', startY: 30 });
             doc.save(`calendario_${this.state.calendarYear}.pdf`);
+            this.showNotification('PDF descargado correctamente', 'success');
         } catch (error) {
-            console.error('Error generando PDF de calendario:', error);
-            this.showNotification('Error al generar el PDF del calendario: ' + error.message, 'error');
+            this.showNotification('Error al generar el PDF', 'error');
+            console.error(error);
         }
     }
 
-    generatePDF() {
+    downloadCalendarExcel() {
         try {
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                throw new Error('jsPDF no está cargado');
-            }
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            if (typeof doc.autoTable !== 'function') {
-                throw new Error('AutoTable no está disponible');
-            }
-
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const margin = 15;
-
-            doc.setFillColor(2, 119, 189);
-            doc.rect(0, 0, pageWidth, 40, 'F');
-            doc.setTextColor(255);
-            doc.setFontSize(18);
-            doc.setFont('Helvetica', 'bold');
-            doc.text('Revisión de Contrato', pageWidth / 2, 25, { align: 'center' });
-
-            let y = 45;
-
-            doc.setFontSize(14);
-            doc.setTextColor(2, 119, 189);
-            doc.text('Información General', margin, y);
-            y += 5;
-            doc.setLineWidth(0.5);
-            doc.setDrawColor(2, 119, 189);
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 5;
-            doc.setFontSize(10);
-            doc.setTextColor(38, 50, 56);
-            doc.autoTable({
-                startY: y,
-                head: [['Campo', 'Valor']],
-                body: this.getSectionData('informacion'),
-                styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 249, 252] },
-                margin: { left: margin, right: margin }
-            });
-            y = doc.lastAutoTable.finalY + 15;
-
-            doc.setFontSize(14);
-            doc.setTextColor(2, 119, 189);
-            doc.text('Aspectos Financieros', margin, y);
-            y += 5;
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 5;
-            doc.setFontSize(10);
-            doc.setTextColor(38, 50, 56);
-            doc.autoTable({
-                startY: y,
-                head: [['Concepto', 'Porcentaje', 'Valor']],
-                body: this.getFinancialData(),
-                styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 249, 252] },
-                margin: { left: margin, right: margin }
-            });
-            y = doc.lastAutoTable.finalY + 15;
-
-            doc.setFontSize(14);
-            doc.setTextColor(2, 119, 189);
-            doc.text('Condiciones de Ejecución', margin, y);
-            y += 5;
-            doc.line(margin, y, pageWidth - margin, y);
-            y += 5;
-            doc.setFontSize(10);
-            doc.setTextColor(38, 50, 56);
-            doc.autoTable({
-                startY: y,
-                head: [['Campo', 'Valor']],
-                body: this.getSectionData('ejecucion'),
-                styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                alternateRowStyles: { fillColor: [245, 249, 252] },
-                margin: { left: margin, right: margin }
-            });
-            y = doc.lastAutoTable.finalY + 15;
-
-            const cronogramaData = this.getCronogramaData();
-            if (cronogramaData.length > 0) {
-                doc.setFontSize(14);
-                doc.setTextColor(2, 119, 189);
-                doc.text('Cronograma de Trabajo', margin, y);
-                y += 5;
-                doc.line(margin, y, pageWidth - margin, y);
-                y += 5;
-                doc.setFontSize(10);
-                doc.setTextColor(38, 50, 56);
-                doc.autoTable({
-                    startY: y,
-                    head: [['Etapa', 'Fecha', 'Cantidad', 'Valor']],
-                    body: cronogramaData,
-                    styles: { font: 'Helvetica', fontSize: 9, cellPadding: 3, textColor: [38, 50, 56], lineColor: [176, 190, 197], lineWidth: 0.2, overflow: 'linebreak' },
-                    headStyles: { fillColor: [2, 119, 189], textColor: [255, 255, 255], fontStyle: 'bold' },
-                    alternateRowStyles: { fillColor: [245, 249, 252] },
-                    margin: { left: margin, right: margin }
-                });
-            }
-
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text(`Generado el ${this.formatDate(new Date())}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
-
-            doc.save('revision_contrato.pdf');
+            const ws = XLSX.utils.table_to_sheet(document.getElementById('calendarioTable'));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Calendario');
+            XLSX.writeFile(wb, `calendario_${this.state.calendarYear}.xlsx`);
+            this.showNotification('Excel descargado correctamente', 'success');
         } catch (error) {
-            console.error('Error generando PDF:', error);
-            this.showNotification('Error al generar el PDF: ' + error.message, 'error');
+            this.showNotification('Error al generar el Excel', 'error');
+            console.error(error);
         }
-    }
-
-    getSectionData(sectionId) {
-        return Array.from(document.getElementById(sectionId).querySelectorAll('input, textarea, p'))
-            .filter(el => el.id !== 'cronograma')
-            .map(el => [el.parentElement.previousElementSibling?.textContent || el.id, el.value || el.textContent]);
-    }
-
-    getFinancialData() {
-        const data = [
-            ['Costo Directo', '', document.getElementById('valorSubtotalDisplay')?.textContent || ''],
-            ['Subtotal sin AIU', '', document.getElementById('valorSubtotalSinAIU')?.textContent || ''],
-        ];
-        if (this.state.currency === 'COP' || this.state.convertCurrency) {
-            if (document.getElementById('conAIU')?.checked) {
-                data.push(
-                    ['Administración', `${document.getElementById('administracion')?.value || 0}%`, document.getElementById('valorAdministracion')?.textContent || ''],
-                    ['Imprevistos', `${document.getElementById('imprevistos')?.value || 0}%`, document.getElementById('valorImprevistos')?.textContent || ''],
-                    ['Utilidad', `${document.getElementById('utilidad')?.value || 0}%`, document.getElementById('valorUtilidad')?.textContent || ''],
-                    ['Total AIU', '', document.getElementById('totalAIU')?.textContent || ''],
-                    ['Subtotal con AIU', '', document.getElementById('valorSubtotalConAIU')?.textContent || '']
-                );
-            }
-            data.push(['IVA', `${document.getElementById('iva')?.value || 0}%`, document.getElementById('valorIVA')?.textContent || '']);
-        }
-        data.push(
-            ['Valor Total', '', document.getElementById('valorTotal')?.textContent || ''],
-            ['Anticipo', `${document.getElementById('porcentajeAnticipo')?.value || 0}%`, document.getElementById('valorAnticipo')?.textContent || ''],
-            ['Avance de Obra', document.getElementById('porcentajeAvance')?.textContent || '', document.getElementById('valorAvance')?.textContent || ''],
-            ['Retenido', `${document.getElementById('porcentajeRetenido')?.value || 0}%`, document.getElementById('valorRetenido')?.textContent || '']
-        );
-        return data;
-    }
-
-    getCronogramaData() {
-        const tbody = document.querySelector('#cronogramaTable tbody');
-        if (!tbody || tbody.children.length === 0) return [];
-        return Array.from(tbody.children).map(row => {
-            const cells = row.getElementsByTagName('td');
-            return [cells[0].textContent, cells[1].textContent, cells[2].textContent, cells[3].textContent];
-        });
-    }
-
-    getContractData() {
-        const totalInBaseCurrency = this.state.financialResults?.total || 0;
-        const valorTotal = (this.state.convertCurrency && this.state.currency !== 'COP')
-            ? totalInBaseCurrency * this.exchangeRates[this.state.currency]
-            : totalInBaseCurrency;
-        return {
-            nombreProyecto: document.getElementById('nombreProyecto')?.value || '',
-            numeroContrato: document.getElementById('numeroContrato')?.value || '',
-            contratante: document.getElementById('nombreContratante')?.value || '',
-            cantidad: parseInt(document.getElementById('cantidad')?.value) || 0,
-            unidadMedida: document.getElementById('unidadMedida')?.value || 'M2',
-            valorTotal: valorTotal,
-            plazoEjecucion: parseInt(document.getElementById('plazoEjecucion')?.value) || 0,
-            fechaInicio: document.getElementById('fechaInicio')?.value || '',
-            fechaFinal: document.getElementById('fechaFinal')?.textContent || ''
-        };
     }
 
     saveJSON() {
         const data = this.getContractData();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'contrato.json';
-        a.click();
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'contrato.json';
+        link.click();
         URL.revokeObjectURL(url);
-        this.showNotification('JSON guardado', 'success');
+        this.showNotification('JSON guardado correctamente', 'success');
     }
 
     loadJSON(event) {
@@ -841,66 +953,53 @@ class ContractApp {
                 Object.entries(data).forEach(([key, value]) => {
                     const el = document.getElementById(key);
                     if (el) {
-                        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = value;
-                        else if (el.tagName === 'P') el.textContent = value;
+                        if (el.type === 'checkbox') el.checked = value;
+                        else el.value = value;
                     }
                 });
                 this.calculateFinancials();
                 this.calculateExecutionDates();
-                this.showNotification('JSON cargado', 'success');
+                this.showNotification('Datos cargados desde JSON', 'success');
             } catch (error) {
-                console.error('Error al cargar JSON:', error);
-                this.showNotification('Error al cargar JSON', 'error');
+                this.showNotification('Error al cargar el JSON', 'error');
+                console.error(error);
             }
         };
         reader.readAsText(file);
     }
 
-    formatCurrency(value) {
-        let displayValue = value;
-        let symbol = this.currencySymbols[this.state.currency];
-        let currencyCode = this.state.currency;
-
-        if (this.state.convertCurrency && this.state.currency !== 'COP') {
-            displayValue = value * this.exchangeRates[this.state.currency];
-            symbol = this.currencySymbols['COP'];
-            currencyCode = 'COP';
-        }
-
-        return `${symbol} ${new Intl.NumberFormat('es-CO', { style: 'decimal', minimumFractionDigits: 2 }).format(displayValue)} ${currencyCode}`;
+    duplicateProject() {
+        const contractData = this.getContractData();
+        contractData.nombreProyecto = `${contractData.nombreProyecto} (Copia)`;
+        contractData.numeroContrato = '';
+        this.state.contractsHistory.push(contractData);
+        localStorage.setItem('historicoContratos', JSON.stringify(this.state.contractsHistory));
+        this.loadHistoryTable();
+        this.loadCalendarTable();
+        this.updateContratanteList();
+        this.updateProyectoFilter();
+        this.showNotification('Proyecto duplicado', 'success');
     }
 
-    formatNumber(value) {
-        return new Intl.NumberFormat('es-CO').format(value);
+    setTheme(theme) {
+        document.body.classList.remove('light', 'dark');
+        document.body.classList.add(theme);
+        localStorage.setItem('theme', theme);
     }
 
     formatDate(date) {
-        return date.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        if (isNaN(date.getTime())) return 'Fecha inválida';
+        return date.toISOString().split('T')[0];
     }
 
-    showNotification(message, type = 'success') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        setTimeout(() => notification.remove(), 3000);
+    formatNumber(num) {
+        return num.toLocaleString('es-CO');
     }
 
-    updateTabContent() {
-        if (this.state.activeTab === 'historico') this.loadHistoryTable();
-        if (this.state.activeTab === 'calendario') this.loadCalendarTable();
-    }
-
-    saveFormState() {
-        const formState = {};
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            formState[el.id] = el.type === 'checkbox' ? el.checked : el.value;
-        });
-        localStorage.setItem('formState', JSON.stringify(formState));
-    }
-
-    checkNotifications() {
-        document.querySelectorAll('input, select, textarea').forEach(el => this.validateInput(el));
+    formatCurrency(value) {
+        const currency = this.state.currency;
+        const symbol = this.currencySymbols[currency];
+        return `${symbol}${this.formatNumber(value)} ${currency}`;
     }
 }
 
