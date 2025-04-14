@@ -845,38 +845,67 @@ class ContractApp {
     }
 
     downloadPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        try {
-            doc.setFontSize(16);
-            doc.text('Revisión de Contratos', 20, 20);
-            doc.setFontSize(12);
-            doc.text(`Proyecto: ${document.getElementById('nombreProyecto')?.value || 'N/A'}`, 20, 30);
-            doc.text(`Contratante: ${document.getElementById('nombreContratante')?.value || 'N/A'}`, 20, 40);
-            doc.text(`Valor Total: ${document.getElementById('valorTotal')?.textContent || 'N/A'}`, 20, 50);
-            doc.autoTable({ html: '#cronogramaTable', startY: 60 });
-            doc.save('contrato.pdf');
-            this.showNotification('PDF descargado correctamente', 'success');
-        } catch (error) {
-            this.showNotification('Error al generar el PDF', 'error');
-            console.error(error);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    try {
+        if (typeof doc.autoTable !== 'function') {
+            throw new Error('El plugin autoTable no está cargado');
         }
+        const cronogramaTable = document.querySelector('#cronogramaTable tbody');
+        if (!cronogramaTable?.children.length) {
+            this.showNotification('No hay datos en el cronograma para exportar', 'error');
+            return;
+        }
+        doc.setFontSize(16);
+        doc.text('Revisión de Contratos', 20, 20);
+        doc.setFontSize(12);
+        doc.text(`Proyecto: ${document.getElementById('nombreProyecto')?.value || 'N/A'}`, 20, 30);
+        doc.text(`Contratante: ${document.getElementById('nombreContratante')?.value || 'N/A'}`, 20, 40);
+        doc.text(`Valor Total: ${document.getElementById('valorTotal')?.textContent || 'N/A'}`, 20, 50);
+        doc.autoTable({
+            html: '#cronogramaTable',
+            startY: 60,
+            styles: { fontSize: 10, cellPadding: 2 },
+            pageBreak: 'auto',
+            rowPageBreak: 'avoid'
+        });
+        doc.save('contrato.pdf');
+        this.showNotification('PDF descargado correctamente', 'success');
+    } catch (error) {
+        this.showNotification('Error al generar el PDF', 'error');
+        console.error('Error en downloadPDF:', error.message, error.stack);
     }
+}
 
-    downloadHistoryPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        try {
-            doc.setFontSize(16);
-            doc.text('Histórico de Contratos', 20, 20);
-            doc.autoTable({ html: '#tablaHistorico', startY: 30 });
-            doc.save('historico.pdf');
-            this.showNotification('PDF descargado correctamente', 'success');
-        } catch (error) {
-            this.showNotification('Error al generar el PDF', 'error');
-            console.error(error);
+downloadHistoryPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    try {
+        if (typeof doc.autoTable !== 'function') {
+            throw new Error('El plugin autoTable no está cargado');
         }
+        const historicoTable = document.querySelector('#tablaHistorico tbody');
+        if (!historicoTable?.children.length || !this.state.contractsHistory.length) {
+            this.showNotification('No hay contratos en el historial para exportar', 'error');
+            return;
+        }
+        doc.setFontSize(16);
+        doc.text('Histórico de Contratos', 20, 20);
+        doc.autoTable({
+            html: '#tablaHistorico',
+            startY: 30,
+            styles: { fontSize: 10, cellPadding: 2 },
+            columnStyles: { 10: { cellWidth: 0 } }, // Oculta la columna de acción
+            pageBreak: 'auto',
+            rowPageBreak: 'avoid'
+        });
+        doc.save('historico.pdf');
+        this.showNotification('PDF descargado correctamente', 'success');
+    } catch (error) {
+        this.showNotification('Error al generar el PDF', 'error');
+        console.error('Error en downloadHistoryPDF:', error.message, error.stack);
     }
+}
 
     downloadHistoryExcel() {
         try {
@@ -904,19 +933,39 @@ class ContractApp {
     }
 
     downloadCalendarPDF() {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        try {
-            doc.setFontSize(16);
-            doc.text(`Calendario Anual ${this.state.calendarYear}`, 20, 20);
-            doc.autoTable({ html: '#calendarioTable', startY: 30 });
-            doc.save(`calendario_${this.state.calendarYear}.pdf`);
-            this.showNotification('PDF descargado correctamente', 'success');
-        } catch (error) {
-            this.showNotification('Error al generar el PDF', 'error');
-            console.error(error);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    try {
+        if (typeof doc.autoTable !== 'function') {
+            throw new Error('El plugin autoTable no está cargado');
         }
+        const calendarioTable = document.querySelector('#calendarioTable tbody');
+        if (!calendarioTable?.children.length) {
+            this.showNotification('No hay datos en el calendario para exportar', 'error');
+            return;
+        }
+        doc.setFontSize(16);
+        doc.text(`Calendario Anual ${this.state.calendarYear}`, 20, 20);
+        doc.autoTable({
+            html: '#calendarioTable',
+            startY: 30,
+            didParseCell: (data) => {
+                const bar = data.cell.raw.querySelector('.bar');
+                if (bar) {
+                    data.cell.text = data.cell.raw.getAttribute('title') || '-';
+                }
+            },
+            styles: { fontSize: 8, cellPadding: 2 },
+            pageBreak: 'auto',
+            rowPageBreak: 'avoid'
+        });
+        doc.save(`calendario_${this.state.calendarYear}.pdf`);
+        this.showNotification('PDF descargado correctamente', 'success');
+    } catch (error) {
+        this.showNotification('Error al generar el PDF', 'error');
+        console.error('Error en downloadCalendarPDF:', error.message, error.stack);
     }
+}
 
     downloadCalendarExcel() {
         try {

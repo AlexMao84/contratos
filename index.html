@@ -7,6 +7,16 @@
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+	<!-- ... otros meta y estilos ... -->
+    <script src="jspdf.umd.min.js"></script>
+<script src="jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+	
 </head>
 <body>
     <div class="container">
@@ -567,10 +577,17 @@
             </footer>
         </main>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="script.js"></script>
+   <script src="script.js">
+   <script>
+        console.log('Verificando jsPDF:', window.jspdf ? 'Cargado' : 'No cargado');
+        if (window.jspdf) {
+            console.log('Versión de jsPDF:', window.jspdf.jsPDF.version);
+            const doc = new window.jspdf.jsPDF();
+            console.log('autoTable disponible:', typeof doc.autoTable === 'function' ? 'Sí' : 'No');
+            console.log('Propiedades de jsPDF:', Object.keys(doc));
+        } else {
+            console.log('jsPDF no está definido');
+        }
+    </script>
 </body>
 </html>
