@@ -341,7 +341,7 @@ table tbody tr:hover {
 .intensity-2 { background-color: #6497b1; } /* Azul medio claro */
 .intensity-3 { background-color: #03396c; } /* Azul medio oscuro */
 .intensity-4 { background-color: #011f4b; } /* Azul oscuro */
-.intensity-5 { background-color: #000033; } /* Azul muy oscuro */
+.intensity-5 { background-color: #d9d9df; } /* Azul muy oscuro */
 
 .notification {
     position: fixed;
